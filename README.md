@@ -12,6 +12,3 @@ A web-based application that helps students, faculty, and visitors find the fast
 - **Maximilian Brown**
 - **Ethan France**
 - **Tommy Follett (Dunne)**
-
----
-*Made with care to help the campus community navigate more easily.*
