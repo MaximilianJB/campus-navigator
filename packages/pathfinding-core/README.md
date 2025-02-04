@@ -1,5 +1,3 @@
-# api/
-- A Node.js service (Express, NestJS, or similar) that:
-- Loads grid/obstacle data at startup.
-- Exposes endpoints for pathfinding requests, e.g., POST /api/path with start, end.
-- Uses pathfinding-core internally to compute routes.
+# pathfinding-core/
+- The raw pathfinding logic (A*, Jump Point Search, etc.).
+- No direct knowledge of HTTP requests or the user interface—pure algorithms.

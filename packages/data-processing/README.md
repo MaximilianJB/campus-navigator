@@ -1,3 +1,5 @@
-# pathfinding-core/
-- The raw pathfinding logic (A*, Jump Point Search, etc.).
-- No direct knowledge of HTTP requests or the user interface—pure algorithms.
+# data-processing/
+- Scripts to generate or update campus grid (mark building footprints, etc.).
+- Produces final data artifacts (e.g., JSON files or DB entries) that the api service can load.
+- Python packages
+    geokson
