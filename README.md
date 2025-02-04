@@ -11,4 +11,4 @@ A web-based application that helps students, faculty, and visitors find the fast
 ## Authors
 - **Maximilian Brown**
 - **Ethan France**
-- **Tommy Follett (Dunne)**
+- **Tommy Dunne**
