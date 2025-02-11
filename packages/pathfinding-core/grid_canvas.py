@@ -1,5 +1,10 @@
 import tkinter as tk
 import random
+import json
+
+GRID_HEIGHT = 480
+GRID_WIDTH = 480
+SQUARE_SIZE = 5
 
 def draw_grid(canvas, grid, cell_size):
     rows = len(grid)
@@ -23,9 +28,9 @@ def draw_grid(canvas, grid, cell_size):
 
 def main():
     # Define the 2D grid array (0: white, 1: black) for a 40x20 grid
-    grid = [[1 if random.random() < 0.3 else 0 for _ in range(40)] for _ in range(20)]
+    grid = [[1 if random.random() < 0.3 else 0 for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
 
-    cell_size = 20  # Size of each grid cell in pixels
+    cell_size = SQUARE_SIZE  # Size of each grid cell in pixels
     rows = len(grid)
     cols = len(grid[0]) if rows > 0 else 0
     canvas_width = cols * cell_size
