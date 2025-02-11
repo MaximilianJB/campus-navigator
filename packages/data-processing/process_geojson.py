@@ -1,7 +1,6 @@
 import json
 import os
 import numpy as np
-import geopy.distance
 from shapely.geometry import Polygon, MultiPolygon, shape
 from rasterio.features import rasterize
 from affine import Affine
