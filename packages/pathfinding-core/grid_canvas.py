@@ -1,0 +1,1 @@
+# Goal of this code is to demo the pathfinding algo on a canvas
