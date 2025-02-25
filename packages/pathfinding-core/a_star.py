@@ -19,7 +19,7 @@ def a_star(grid, start, end):
     g_score = {start: 0}  # Cost from start to current node
     f_score = {start: euclidean_distance(start, end)}  # Estimated cost from start to end
     
-    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Up, Down, Left, Right
+    directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (1, 1), (1, -1), (-1, 1), (-1, -1)]  # Up, Down, Left, Right, Diagonals
     
     while open_set:
         _, current = heapq.heappop(open_set)
