@@ -2,6 +2,7 @@ import heapq
 import math
 import json
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from google.cloud import storage
 
 app = Flask(__name__)
@@ -79,6 +80,9 @@ def download_grid_config(bucket_name, file_name):
     blob = bucket.blob(file_name)
     return json.loads(blob.download_as_text())
 
+
+# Enable CORS for all routes, allowing requests from http://localhost:3000
+CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
 # Cloud Run HTTP Handler
 @app.route('/', methods=['POST'])
