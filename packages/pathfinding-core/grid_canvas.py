@@ -27,8 +27,12 @@ def draw_grid(canvas, grid, cell_size):
         canvas.create_line(j * cell_size, 0, j * cell_size, height, fill="black")
 
 def main():
+<<<<<<< Updated upstream
     # Define the 2D grid array (0: white, 1: black) for a 40x20 grid
     grid = [[1 if random.random() < 0.3 else 0 for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+=======
+    grid = read_json_file("packages/data-processing/grid_storage.json")
+>>>>>>> Stashed changes
 
     cell_size = SQUARE_SIZE  # Size of each grid cell in pixels
     rows = len(grid)
