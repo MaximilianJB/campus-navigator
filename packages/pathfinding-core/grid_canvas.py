@@ -1,49 +1,91 @@
 import tkinter as tk
-import random
 import json
+from a_star import a_star
 
-GRID_HEIGHT = 480
-GRID_WIDTH = 480
-SQUARE_SIZE = 5
+# Constants
+SQUARE_SIZE = 2
 
-def draw_grid(canvas, grid, cell_size):
-    rows = len(grid)
-    cols = len(grid[0]) if rows > 0 else 0
+def read_json_file(file_path):
+    # Function that reads the grid json file and returns a 2D grid array representation
+    with open(file_path, "r") as file:
+        json_data = json.load(file)
+        
+        # iterate over json rows
+        grid = []
+        for row in json_data['campus1.geojson']:
+            grid_row = []
+            for cell in row:
+                grid_row.append(cell)
+            grid.append(grid_row)
+            
+        return grid
+class GridApp:
+    def __init__(self, root, grid):
+        self.root = root
+        self.grid = grid
+        self.cell_size = SQUARE_SIZE
+        self.start = None
+        self.end = None
+        self.canvas = tk.Canvas(root, width=len(grid[0]) * self.cell_size, height=len(grid) * self.cell_size)
+        self.canvas.pack()
+        self.draw_grid()
+        self.canvas.bind("<Button-1>", self.set_start)  # Left-click to set start
+        self.canvas.bind("<Button-3>", self.set_end)  # Right-click to set end
 
-    # Fill in squares based on grid values: 0 -> white, 1 -> black
-    for i in range(rows):
-        for j in range(cols):
-            x1, y1 = j * cell_size, i * cell_size
-            x2, y2 = (j + 1) * cell_size, (i + 1) * cell_size
-            color = "white" if grid[i][j] == 0 else "black"
-            canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
+    def draw_grid(self):
+        """Draws the grid based on 0 (white) and 1 (black) values."""
+        for i in range(len(self.grid)):
+            for j in range(len(self.grid[0])):
+                x1, y1 = j * self.cell_size, i * self.cell_size
+                x2, y2 = (j + 1) * self.cell_size, (i + 1) * self.cell_size
+                color = "white" if self.grid[i][j] == 0 else "black"
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="gray")
 
-    # Draw plain black grid lines over the squares
-    width = cols * cell_size
-    height = rows * cell_size
-    for i in range(rows + 1):
-        canvas.create_line(0, i * cell_size, width, i * cell_size, fill="black")
-    for j in range(cols + 1):
-        canvas.create_line(j * cell_size, 0, j * cell_size, height, fill="black")
+    def set_start(self, event):
+        """Handles setting the start position."""
+        x, y = event.x // self.cell_size, event.y // self.cell_size
+        print(f"X: {x}, Y: {y}")
+        if self.grid[y][x] == 0:  # Ensure it's a traversable square
+            self.start = (y, x)
+            self.update_grid()
+            self.run_pathfinding()
+
+    def set_end(self, event):
+        """Handles setting the end position."""
+        x, y = event.x // self.cell_size, event.y // self.cell_size
+        print(f"X: {x}, Y: {y}")
+        if self.grid[y][x] == 0:  # Ensure it's a traversable square
+            self.end = (y, x)
+            self.update_grid()
+            self.run_pathfinding()
+
+    def update_grid(self):
+        """Redraws grid with start (green) and end (red) markers."""
+        self.draw_grid()
+        if self.start:
+            sx, sy = self.start[1] * self.cell_size, self.start[0] * self.cell_size
+            self.canvas.create_rectangle(sx, sy, sx + self.cell_size, sy + self.cell_size, fill="green", outline="black")
+        if self.end:
+            ex, ey = self.end[1] * self.cell_size, self.end[0] * self.cell_size
+            self.canvas.create_rectangle(ex, ey, ex + self.cell_size, ey + self.cell_size, fill="red", outline="black")
+
+    def run_pathfinding(self):
+        """Runs A* algorithm if both start and end are selected and draws the path."""
+        if self.start and self.end:
+            path = a_star(self.grid, self.start, self.end)
+            if path:
+                for y, x in path:
+                    if (y, x) != self.start and (y, x) != self.end:
+                        px, py = x * self.cell_size, y * self.cell_size
+                        self.canvas.create_rectangle(px, py, px + self.cell_size, py + self.cell_size, fill="blue", outline="black")
+
 
 def main():
-    # Define the 2D grid array (0: white, 1: black) for a 40x20 grid
-    grid = [[1 if random.random() < 0.3 else 0 for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+    grid = read_json_file("../data-processing/grid_storage.json")
 
-    cell_size = SQUARE_SIZE  # Size of each grid cell in pixels
-    rows = len(grid)
-    cols = len(grid[0]) if rows > 0 else 0
-    canvas_width = cols * cell_size
-    canvas_height = rows * cell_size
-
-    # Create Tkinter window and canvas
     root = tk.Tk()
-    root.title("Pathfinding Grid Canvas")
-    canvas = tk.Canvas(root, width=canvas_width, height=canvas_height, bg="white")
-    canvas.pack()
-
-    draw_grid(canvas, grid, cell_size)
-
+    root.title("Pathfinding Grid Selector")
+    app = GridApp(root, grid)
     root.mainloop()
 
 if __name__ == '__main__':
