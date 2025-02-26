@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import GetLocationButton from '@/components/custom/GetLocationButton';
 
 export default function Home() {
   const [startLat, setStartLat] = useState('');
@@ -81,9 +82,16 @@ export default function Home() {
     <div className="flex flex-col items-center justify-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
       <main className="flex flex-col gap-8 items-center">
         <h1 className="text-3xl font-bold">Campus Navigator</h1>
-        <Button variant="outline" className="w-full max-w-md" onClick={handleDefaultValueFill}>
-          Fill with default values
-        </Button>
+
+        <div className='grid grid-cols-2 gap-4 w-full'>
+          <Button variant="outline" className="w-full" onClick={handleDefaultValueFill}>
+            Fill with default values
+          </Button>
+          <GetLocationButton onLocationObtained={(lat, long) => {
+            setStartLat(lat.toString());
+            setStartLng(long.toString());
+          }} />
+        </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-md">
           <div className="grid grid-cols-2 gap-4">
