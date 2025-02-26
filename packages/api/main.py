@@ -1,14 +1,10 @@
 import heapq
 import math
 import json
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, make_response, jsonify
 from google.cloud import storage
 
 app = Flask(__name__)
-
-import heapq
-import math
 
 def euclidean_distance(a, b):
     """Calculate Euclidean distance between two points."""
@@ -55,7 +51,6 @@ def a_star(grid, start, end):
     
     return []  # No path found
 
-# Coordinate conversion functions
 def lat_lng_to_grid(lat, lng, config):
     """Convert lat-long to grid coordinates."""
     row_size = (config['lat_max'] - config['lat_min']) / config['rows']
@@ -72,7 +67,6 @@ def grid_to_lat_lng(row, col, config):
     lng = config['lng_min'] + (col + 0.5) * col_size
     return lat, lng
 
-# Cloud Storage download function
 def download_grid_config(bucket_name, file_name):
     """Download and parse grid_config.json from Cloud Storage."""
     client = storage.Client()
@@ -80,21 +74,38 @@ def download_grid_config(bucket_name, file_name):
     blob = bucket.blob(file_name)
     return json.loads(blob.download_as_text())
 
-
-# Enable CORS for all routes, allowing requests from http://localhost:3000
-CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
-
-# Cloud Run HTTP Handler
-@app.route('/', methods=['POST'])
+# Cloud Run HTTP Handler with manual CORS
+@app.route('/', methods=['OPTIONS', 'POST'])
 def find_path():
-    """Handle POST requests to find a path between two lat-long points."""
+    """Handle POST requests to find a path and OPTIONS for CORS preflight."""
+    # Define allowed origins
+    allowed_origins = ['http://localhost:3000', 'https://campus-navigator.vercel.app']
+    origin = request.headers.get('Origin', '')  # Get the Origin header from the request
+    cors_origin = origin if origin in allowed_origins else 'https://campus-navigator.vercel.app'  # Default to Vercel
+
+    # Set CORS headers for all responses
+    response = make_response()
+    response.headers['Access-Control-Allow-Origin'] = cors_origin
+
+    if request.method == 'OPTIONS':
+        # Handle preflight request
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        response.headers['Access-Control-Max-Age'] = '3600'  # Cache preflight for 1 hour
+        return response, 204
+
+    # Handle POST request
     if request.method != 'POST':
-        return jsonify({'error': 'Method not allowed'}), 405
-    
+        response = make_response(jsonify({'error': 'Method not allowed'}))
+        response.headers['Access-Control-Allow-Origin'] = cors_origin
+        return response, 405
+
     # Parse request JSON
     data = request.get_json()
     if not data or 'start_lat' not in data or 'start_lng' not in data or 'end_lat' not in data or 'end_lng' not in data:
-        return jsonify({'error': 'Missing required fields: start_lat, start_lng, end_lat, end_lng'}), 400
+        response = make_response(jsonify({'error': 'Missing required fields: start_lat, start_lng, end_lat, end_lng'}))
+        response.headers['Access-Control-Allow-Origin'] = cors_origin
+        return response, 400
     
     start_lat = float(data['start_lat'])
     start_lng = float(data['start_lng'])
@@ -105,7 +116,9 @@ def find_path():
     try:
         config = download_grid_config('gu-campus-maps', 'grid_config.json')
     except Exception as e:
-        return jsonify({'error': f'Failed to load grid config: {str(e)}'}), 500
+        response = make_response(jsonify({'error': f'Failed to load grid config: {str(e)}'}))
+        response.headers['Access-Control-Allow-Origin'] = cors_origin
+        return response, 500
     
     # Convert lat-long to grid coordinates
     start_row, start_col = lat_lng_to_grid(start_lat, start_lng, config)
@@ -113,22 +126,34 @@ def find_path():
     
     # Validate coordinates
     if not (0 <= start_row < config['rows'] and 0 <= start_col < config['cols']):
-        return jsonify({'error': 'Start point outside grid bounds'}), 400
+        response = make_response(jsonify({'error': 'Start point outside grid bounds'}))
+        response.headers['Access-Control-Allow-Origin'] = cors_origin
+        return response, 400
     if not (0 <= end_row < config['rows'] and 0 <= end_col < config['cols']):
-        return jsonify({'error': 'End point outside grid bounds'}), 400
+        response = make_response(jsonify({'error': 'End point outside grid bounds'}))
+        response.headers['Access-Control-Allow-Origin'] = cors_origin
+        return response, 400
     if config['grid'][start_row][start_col] == 1:
-        return jsonify({'error': 'Start point is an obstacle'}), 400
+        response = make_response(jsonify({'error': 'Start point is an obstacle'}))
+        response.headers['Access-Control-Allow-Origin'] = cors_origin
+        return response, 400
     if config['grid'][end_row][end_col] == 1:
-        return jsonify({'error': 'End point is an obstacle'}), 400
+        response = make_response(jsonify({'error': 'End point is an obstacle'}))
+        response.headers['Access-Control-Allow-Origin'] = cors_origin
+        return response, 400
     
     # Run A* pathfinding
     path = a_star(config['grid'], (start_row, start_col), (end_row, end_col))
     if not path:
-        return jsonify({'path': []}), 200
+        response = make_response(jsonify({'path': []}))
+        response.headers['Access-Control-Allow-Origin'] = cors_origin
+        return response, 200
     
     # Convert path to lat-long
     path_lat_lng = [grid_to_lat_lng(row, col, config) for row, col in path]
-    return jsonify({'path': [[lat, lng] for lat, lng in path_lat_lng]}), 200
+    response = make_response(jsonify({'path': [[lat, lng] for lat, lng in path_lat_lng]}))
+    response.headers['Access-Control-Allow-Origin'] = cors_origin
+    return response, 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)

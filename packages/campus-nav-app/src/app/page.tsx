@@ -10,9 +10,11 @@ export default function Home() {
   const [startLng, setStartLng] = useState('');
   const [endLat, setEndLat] = useState('');
   const [endLng, setEndLng] = useState('');
-  const [path, setPath] = useState(null);
+  const [path, setPath] = useState<[number, number][] | null>(null); // Typed as array of [lat, lng] pairs
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://calculatecampuspath-842151361761.us-central1.run.app';
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -36,7 +38,7 @@ export default function Home() {
     setError(null);
 
     try {
-      const response = await fetch('https://calculatecampuspath-842151361761.us-central1.run.app', {
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -50,14 +52,16 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        const errorText = await response.text();
+        throw new Error(`Network response was not ok: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
       setPath(data.path);
     } catch (err) {
       if (err instanceof Error) {
-        setError(err.message);
+        // Enhanced error message to help debug CORS or server issues
+        setError(`Failed to fetch path: ${err.message}${err.message.includes('CORS') ? ' (Check API CORS settings)' : ''}`);
       } else {
         setError('An unknown error occurred');
       }
@@ -71,13 +75,13 @@ export default function Home() {
     setStartLng('-117.4090');
     setEndLat('47.6700');
     setEndLng('-117.3970');
-  }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
       <main className="flex flex-col gap-8 items-center">
         <h1 className="text-3xl font-bold">Campus Navigator</h1>
-        <Button variant='outline' className='w-full' onClick={handleDefaultValueFill}>
+        <Button variant="outline" className="w-full max-w-md" onClick={handleDefaultValueFill}>
           Fill with default values
         </Button>
 
@@ -132,16 +136,14 @@ export default function Home() {
         {error && <div className="text-red-500 mt-4">{error}</div>}
 
         {path && (
-          <Collapsible className="mt-4 w-full">
-            <CollapsibleTrigger className="w-full">
-              View Path
-            </CollapsibleTrigger>
+          <Collapsible className="mt-4 w-full max-w-md">
+            <CollapsibleTrigger className="w-full">View Path</CollapsibleTrigger>
             <CollapsibleContent>
               <pre className="bg-gray-100 p-4 rounded mt-2">{JSON.stringify(path, null, 2)}</pre>
             </CollapsibleContent>
           </Collapsible>
         )}
       </main>
-    </div >
+    </div>
   );
 }
