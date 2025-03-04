@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import GetLocationButton from '@/components/custom/GetLocationButton';
+import MapComponent from '@/components/custom/MapComponent';
 
 export default function Home() {
   const [startLat, setStartLat] = useState('');
@@ -72,85 +73,88 @@ export default function Home() {
   };
 
   const handleDefaultValueFill = () => {
-    setStartLat('47.6625');
-    setStartLng('-117.4090');
-    setEndLat('47.6700');
-    setEndLng('-117.3970');
+    setEndLat('47.6625');
+    setEndLng('-117.4090');
+    setStartLat('47.6700');
+    setStartLng('-117.3970');
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-8 items-center">
-        <h1 className="text-3xl font-bold">Campus Navigator</h1>
+      <main className="grid grid-cols-1 sm:grid-cols-2 gap-8 items-center w-full">
+        <div className='flex flex-col flex-1 gap-6'>
+          <h1 className="text-3xl font-bold">Campus Navigator</h1>
 
-        <div className='grid grid-cols-2 gap-4 w-full'>
-          <Button variant="outline" className="w-full" onClick={handleDefaultValueFill}>
-            Fill with default values
-          </Button>
-          <GetLocationButton onLocationObtained={(lat, long) => {
-            setStartLat(lat.toString());
-            setStartLng(long.toString());
-          }} />
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-md">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="startLat" className="block text-sm font-medium">Start Latitude</label>
-              <Input
-                id="startLat"
-                type="number"
-                step="any"
-                value={startLat}
-                onChange={(e) => setStartLat(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="startLng" className="block text-sm font-medium">Start Longitude</label>
-              <Input
-                id="startLng"
-                type="number"
-                step="any"
-                value={startLng}
-                onChange={(e) => setStartLng(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="endLat" className="block text-sm font-medium">End Latitude</label>
-              <Input
-                id="endLat"
-                type="number"
-                step="any"
-                value={endLat}
-                onChange={(e) => setEndLat(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="endLng" className="block text-sm font-medium">End Longitude</label>
-              <Input
-                id="endLng"
-                type="number"
-                step="any"
-                value={endLng}
-                onChange={(e) => setEndLng(e.target.value)}
-              />
-            </div>
+          <div className='grid grid-cols-2 gap-4 w-full'>
+            <Button variant="outline" className="w-full" onClick={handleDefaultValueFill}>
+              Fill with default values
+            </Button>
+            <GetLocationButton onLocationObtained={(lat, long) => {
+              setStartLat(lat.toString());
+              setStartLng(long.toString());
+            }} />
           </div>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Loading...' : 'Calculate Path'}
-          </Button>
-        </form>
 
-        {error && <div className="text-red-500 mt-4">{error}</div>}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="startLat" className="block text-sm font-medium">Start Latitude</label>
+                <Input
+                  id="startLat"
+                  type="number"
+                  step="any"
+                  value={startLat}
+                  onChange={(e) => setStartLat(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="startLng" className="block text-sm font-medium">Start Longitude</label>
+                <Input
+                  id="startLng"
+                  type="number"
+                  step="any"
+                  value={startLng}
+                  onChange={(e) => setStartLng(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="endLat" className="block text-sm font-medium">End Latitude</label>
+                <Input
+                  id="endLat"
+                  type="number"
+                  step="any"
+                  value={endLat}
+                  onChange={(e) => setEndLat(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="endLng" className="block text-sm font-medium">End Longitude</label>
+                <Input
+                  id="endLng"
+                  type="number"
+                  step="any"
+                  value={endLng}
+                  onChange={(e) => setEndLng(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Loading...' : 'Calculate Path'}
+            </Button>
+          </form>
 
-        {path && (
-          <Collapsible className="mt-4 w-full max-w-md">
-            <CollapsibleTrigger className="w-full">View Path</CollapsibleTrigger>
-            <CollapsibleContent>
-              <pre className="bg-gray-100 p-4 rounded mt-2">{JSON.stringify(path, null, 2)}</pre>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
+          {error && <div className="text-red-500 mt-4">{error}</div>}
+
+          {path && (
+            <Collapsible className="mt-4 w-full max-w-md">
+              <CollapsibleTrigger className="w-full">View Path</CollapsibleTrigger>
+              <CollapsibleContent>
+                <pre className="bg-gray-100 p-4 rounded mt-2">{JSON.stringify(path, null, 2)}</pre>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+        </div>
+        <MapComponent coordinates={path || []} />
       </main>
     </div>
   );
