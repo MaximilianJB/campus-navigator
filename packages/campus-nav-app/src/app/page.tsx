@@ -165,7 +165,6 @@ export default function Home() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2">
-                <div className="text-sm text-gray-600 mr-2 mb-2 sm:mb-0">Camera View:</div>
                 <div className="flex gap-2">
                   <Button
                     size="sm"
