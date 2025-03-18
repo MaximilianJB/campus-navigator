@@ -81,7 +81,7 @@ class GridApp:
 
 
 def main():
-    grid = read_json_file("../data-processing/grid_storage.json")
+    grid = read_json_file("/Users/maximilianbrown/Desktop/GU/Senior/CampusNav/campus-navigator/packages/data-processing/grid_storage.json")
 
     root = tk.Tk()
     root.title("Pathfinding Grid Selector")

@@ -7,7 +7,7 @@ from affine import Affine
 from pyproj import Transformer
 
 class GeoJSONGridProcessor:
-    def __init__(self, geojson_filename="campus1.geojson", cell_size=2):
+    def __init__(self, geojson_filename="campus_detailed_2.24.geojson", cell_size=2):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.geojson_path = os.path.join(script_dir, geojson_filename)
         self.cell_size = cell_size
