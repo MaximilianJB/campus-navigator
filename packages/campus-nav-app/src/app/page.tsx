@@ -4,8 +4,10 @@ import { useState, useMemo } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GetLocationButton from '@/components/custom/GetLocationButton';
 import MapComponent from '@/components/custom/MapComponent';
+import SchedulePlanningMode from '@/components/custom/SchedulePlanningMode';
 
 export default function Home() {
   const [startLat, setStartLat] = useState('');
@@ -16,6 +18,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraMode, setCameraMode] = useState<'aerial' | 'start'>('start');
+  const [currentTab, setCurrentTab] = useState('manual');
+  const [entrances, setEntrances] = useState<{ lat: number; lon: number; name: string }[]>([]);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://calculatecampuspath-842151361761.us-central1.run.app';
 
@@ -39,6 +43,8 @@ export default function Home() {
 
     setLoading(true);
     setError(null);
+    // Clear any entrances when calculating a new path
+    setEntrances([]);
 
     try {
       const response = await fetch(API_URL, {
@@ -82,14 +88,28 @@ export default function Home() {
     setStartLng('-117.3970');
   };
 
+  // Handle tab changes
+  const handleTabChange = (value: string) => {
+    setCurrentTab(value);
+
+    // Reset path when switching tabs
+    if (value === 'manual') {
+      setEntrances([]);
+    } else if (value === 'schedule') {
+      setPath(null);
+    }
+  };
+
   // Memoize the MapComponent to prevent re-renders when form inputs change
   const memoizedMap = useMemo(() => {
-    // Only pass coordinates if path exists and is not empty
+    // For manual mode, use path coordinates
+    // For schedule mode, use entrance locations
     return <MapComponent
       coordinates={path && path.length > 0 ? path : []}
       cameraMode={cameraMode}
+      entrances={entrances}
     />;
-  }, [path, cameraMode]); // Re-render when path or camera mode changes
+  }, [path, cameraMode, entrances]); // Re-render when path, camera mode, or entrances change
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
@@ -97,110 +117,128 @@ export default function Home() {
         <div className='flex flex-col flex-1 gap-6'>
           <h1 className="text-3xl font-bold">Campus Navigator</h1>
 
-          <div className='grid grid-cols-2 gap-4 w-full'>
-            <Button variant="outline" className="w-full" onClick={handleDefaultValueFill}>
-              Fill with default values
-            </Button>
-            <GetLocationButton onLocationObtained={(lat, long) => {
-              setStartLat(lat.toString());
-              setStartLng(long.toString());
-            }} />
-          </div>
+          <Tabs defaultValue="manual" value={currentTab} onValueChange={handleTabChange}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="manual">Manual Path</TabsTrigger>
+              <TabsTrigger value="schedule">Schedule Planning</TabsTrigger>
+            </TabsList>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="startLat" className="block text-sm font-medium">Start Latitude</label>
-                <Input
-                  id="startLat"
-                  type="number"
-                  step="any"
-                  value={startLat}
-                  onChange={(e) => setStartLat(e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="startLng" className="block text-sm font-medium">Start Longitude</label>
-                <Input
-                  id="startLng"
-                  type="number"
-                  step="any"
-                  value={startLng}
-                  onChange={(e) => setStartLng(e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="endLat" className="block text-sm font-medium">End Latitude</label>
-                <Input
-                  id="endLat"
-                  type="number"
-                  step="any"
-                  value={endLat}
-                  onChange={(e) => setEndLat(e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="endLng" className="block text-sm font-medium">End Longitude</label>
-                <Input
-                  id="endLng"
-                  type="number"
-                  step="any"
-                  value={endLng}
-                  onChange={(e) => setEndLng(e.target.value)}
-                />
-              </div>
-            </div>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Loading...' : 'Calculate Path'}
-            </Button>
-          </form>
-
-          {error && <div className="text-red-500 mt-4">{error}</div>}
-
-          {/* Success block with camera controls */}
-          {path && path.length > 0 && (
-            <div className="bg-green-100 border border-green-200 rounded-lg p-4 mt-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-green-700 font-medium">Path Calculated!</h3>
+            <TabsContent value="manual" className="border rounded-md p-4 mt-4">
+              <div className='grid grid-cols-2 gap-4 w-full'>
+                <Button variant="outline" className="w-full" onClick={handleDefaultValueFill}>
+                  Fill with default values
+                </Button>
+                <GetLocationButton onLocationObtained={(lat, long) => {
+                  setStartLat(lat.toString());
+                  setStartLng(long.toString());
+                }} />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2">
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant={cameraMode === 'aerial' ? 'default' : 'outline'}
-                    onClick={() => setCameraMode('aerial')}
-                    className="text-xs py-1 h-auto"
-                  >
-                    Aerial View
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={cameraMode === 'start' ? 'default' : 'outline'}
-                    onClick={() => setCameraMode('start')}
-                    className="text-xs py-1 h-auto"
-                  >
-                    Start View
-                  </Button>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="startLat" className="block text-sm font-medium">Start Latitude</label>
+                    <Input
+                      id="startLat"
+                      type="number"
+                      step="any"
+                      value={startLat}
+                      onChange={(e) => setStartLat(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="startLng" className="block text-sm font-medium">Start Longitude</label>
+                    <Input
+                      id="startLng"
+                      type="number"
+                      step="any"
+                      value={startLng}
+                      onChange={(e) => setStartLng(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="endLat" className="block text-sm font-medium">End Latitude</label>
+                    <Input
+                      id="endLat"
+                      type="number"
+                      step="any"
+                      value={endLat}
+                      onChange={(e) => setEndLat(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="endLng" className="block text-sm font-medium">End Longitude</label>
+                    <Input
+                      id="endLng"
+                      type="number"
+                      step="any"
+                      value={endLng}
+                      onChange={(e) => setEndLng(e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Loading...' : 'Calculate Path'}
+                </Button>
+              </form>
 
-              <div className="mt-4">
-                <Collapsible className="w-full max-w-md">
-                  <CollapsibleTrigger className="text-sm text-green-600 underline cursor-pointer">
-                    Toggle View Path Data
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <pre className="bg-white p-4 rounded mt-2 text-xs overflow-auto max-h-40">
-                      {JSON.stringify(path, null, 2)}
-                    </pre>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
-            </div>
-          )}
+              {error && <div className="text-red-500 mt-4">{error}</div>}
+
+              {/* Success block with camera controls */}
+              {path && path.length > 0 && (
+                <div className="bg-green-100 border border-green-200 rounded-lg p-4 mt-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-green-700 font-medium">Path Calculated!</h3>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant={cameraMode === 'aerial' ? 'default' : 'outline'}
+                        onClick={() => setCameraMode('aerial')}
+                        className="text-xs py-1 h-auto"
+                      >
+                        Aerial View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={cameraMode === 'start' ? 'default' : 'outline'}
+                        onClick={() => setCameraMode('start')}
+                        className="text-xs py-1 h-auto"
+                      >
+                        Start View
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <Collapsible className="w-full max-w-md">
+                      <CollapsibleTrigger className="text-sm text-green-600 underline cursor-pointer">
+                        Toggle View Path Data
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <pre className="bg-white p-4 rounded mt-2 text-xs overflow-auto max-h-40">
+                          {JSON.stringify(path, null, 2)}
+                        </pre>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="schedule" className="border rounded-md p-4 mt-4">
+              <SchedulePlanningMode
+
+              />
+            </TabsContent>
+          </Tabs>
         </div>
-        {memoizedMap}
+
+        <div className="w-full aspect-square relative">
+          {memoizedMap}
+        </div>
       </main>
     </div>
   );
