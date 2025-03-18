@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, memo } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import simplify from "simplify-js"
@@ -9,18 +9,19 @@ interface MapComponentProps {
 	coordinates: [number, number][]; // 2D array of [latitude, longitude]
 }
 
-const MapComponent: React.FC<MapComponentProps> = ({ coordinates }) => {
+const MapComponent: React.FC<MapComponentProps> = memo(({ coordinates }) => {
 	// Type the refs for the map container and map instance
 	const mapContainer = useRef<HTMLDivElement | null>(null);
 	const map = useRef<mapboxgl.Map | null>(null);
-	const [animationFrame] = useState<number | null>(null);
 
-	// Simplify the coordinates
-	const tolerance = 0.0001; // Adjust tolerance as needed
-	const highQuality = true; // Set to true for more accurate results
-	const pointCoordinates = coordinates.map(coord => ({ x: coord[0], y: coord[1] }));
-	const smoothedCoordinates = simplify(pointCoordinates, tolerance, highQuality);
-	const smoothedCoordinatesArray = smoothedCoordinates.map(point => [point.x, point.y]);
+	// Simplify the coordinates - memoize this calculation
+	const smoothedCoordinatesArray = useMemo(() => {
+		const tolerance = 0.0001; // Adjust tolerance as needed
+		const highQuality = true; // Set to true for more accurate results
+		const pointCoordinates = coordinates.map(coord => ({ x: coord[0], y: coord[1] }));
+		const smoothedCoordinates = simplify(pointCoordinates, tolerance, highQuality);
+		return smoothedCoordinates.map(point => [point.x, point.y] as [number, number]);
+	}, [coordinates]);
 
 	// Convert coordinates to GeoJSON format
 	const geojson = useMemo(
@@ -35,45 +36,30 @@ const MapComponent: React.FC<MapComponentProps> = ({ coordinates }) => {
 		[smoothedCoordinatesArray],
 	);
 
-	// Function to calculate bounds from coordinates
-	const getBounds = (
-		coords: [number, number][],
-	): [[number, number], [number, number]] => {
-		const latitudes = coords.map((coord) => coord[0]);
-		const longitudes = coords.map((coord) => coord[1]);
-		const minLat = Math.min(...latitudes);
-		const maxLat = Math.max(...latitudes);
-		const minLon = Math.min(...longitudes);
-		const maxLon = Math.max(...longitudes);
-		return [
-			[minLon, minLat],
-			[maxLon, maxLat],
-		];
-	};
-
 	// Utility functions for bearing calculation
-	const toRadians = (deg: number) => (deg * Math.PI) / 180;
-	const toDegrees = (rad: number) => (rad * 180) / Math.PI;
+	const toRadians = useCallback((deg: number) => (deg * Math.PI) / 180, []);
+	const toDegrees = useCallback((rad: number) => (rad * 180) / Math.PI, []);
 
-	const calculateBearing = (
-		start: [number, number],
-		end: [number, number],
-	): number => {
-		const [lat1, lon1] = start;
-		const [lat2, lon2] = end;
-		const φ1 = toRadians(lat1);
-		const φ2 = toRadians(lat2);
-		const Δλ = toRadians(lon2 - lon1);
-		const y = Math.sin(Δλ) * Math.cos(φ2);
-		const x =
-			Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
-		const bearing = toDegrees(Math.atan2(y, x));
-		return bearing;
-	};
+	const calculateBearing = useCallback(
+		(start: [number, number], end: [number, number]) => {
+			const [lat1, lon1] = start;
+			const [lat2, lon2] = end;
+			const φ1 = toRadians(lat1);
+			const φ2 = toRadians(lat2);
+			const Δλ = toRadians(lon2 - lon1);
+			const y = Math.sin(Δλ) * Math.cos(φ2);
+			const x =
+				Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+			const bearing = toDegrees(Math.atan2(y, x));
+			return bearing;
+		},
+		[toRadians, toDegrees]
+	);
 
-	// Initialize the map when the component mounts
+	// Initialize the map only once when the component mounts
 	useEffect(() => {
 		if (!mapContainer.current) return; // Guard against null ref
+		if (map.current) return; // Skip if map already exists
 
 		// Set Mapbox access token
 		mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || ""; // Ensure you have the token in your .env.local file
@@ -86,96 +72,76 @@ const MapComponent: React.FC<MapComponentProps> = ({ coordinates }) => {
 			zoom: 10,
 		});
 
-		//47.66626, 117.40400
-
-		// When the map loads, add the path and adjust the view
+		// When the map loads, add the path and adjust the view if coordinates are available
 		map.current.on("load", () => {
 			if (!map.current) return; // Guard against null map
 
-			if (coordinates.length > 0) {
-				// Add the GeoJSON source for the path
-				map.current.addSource("route", {
-					type: "geojson",
-					data: geojson,
-				});
-
-				// Add a layer to display the path as a line
-				map.current.addLayer({
-					id: "route",
-					type: "line",
-					source: "route",
-					layout: {
-						"line-join": "round",
-						"line-cap": "round",
+			// Initially add the GeoJSON source even with empty coordinates
+			map.current.addSource("route", {
+				type: "geojson",
+				data: {
+					type: "Feature",
+					properties: {},
+					geometry: {
+						type: "LineString",
+						coordinates: [],
 					},
-					paint: {
-						"line-color": "#B33C86",
-						"line-width": 3,
-					},
-				});
+				},
+			});
 
-				// Calculate bounds and bearing
-				// const bounds = getBounds(coordinates);
-				const start = coordinates[0];
-				const end = coordinates[coordinates.length - 1];
-				const bearing = calculateBearing(start, end);
-
-				// Fit bounds with pitch and bearing
-				map.current.flyTo({
-					center: [start[1], start[0]], // Start point in [longitude, latitude]
-					zoom: 17, // High zoom level for close-up view
-					pitch: 45, // 45-degree tilt
-					bearing: bearing, // Points towards the end
-					speed: 1, // Animation speed
-					curve: 1, // Smooth animation curve
-				});
-			}
+			// Add a layer to display the path as a line
+			map.current.addLayer({
+				id: "route",
+				type: "line",
+				source: "route",
+				layout: {
+					"line-join": "round",
+					"line-cap": "round",
+				},
+				paint: {
+					"line-color": "#B33C86",
+					"line-width": 3,
+				},
+			});
 		});
 
 		// Cleanup: remove the map when the component unmounts
 		return () => {
 			if (map.current) {
 				map.current.remove();
-			}
-
-			// Cancel any ongoing animation
-			if (animationFrame !== null) {
-				cancelAnimationFrame(animationFrame);
+				map.current = null;
 			}
 		};
-	}, [coordinates, geojson]);
+	}, []); // Empty dependency array ensures this effect runs only once
 
-	// Update the map when coordinates change
+	// Update the map when coordinates change and the map is ready
 	useEffect(() => {
-		if (map.current?.getSource("route")) {
-			if (coordinates.length > 0) {
-				// Update the GeoJSON source with new coordinates
-				const source = map.current.getSource("route");
-				if (source && "setData" in source) {
-					(source as mapboxgl.GeoJSONSource).setData(geojson);
-				}
-				// Recalculate and fit to new bounds
-				const bounds = getBounds(coordinates);
-				map.current.fitBounds(bounds, { padding: 20 });
-			} else {
-				// Remove the layer and source if coordinates are empty
-				if (map.current.getLayer("route")) {
-					map.current.removeLayer("route");
-				}
-				if (map.current.getSource("route")) {
-					map.current.removeSource("route");
-				}
+		if (!map.current || !map.current.loaded()) return;
 
-				// Remove animation layers if they exist
-				if (map.current.getLayer("animated-point-layer")) {
-					map.current.removeLayer("animated-point-layer");
-				}
-				if (map.current.getSource("animated-point")) {
-					map.current.removeSource("animated-point");
-				}
-			}
+		const source = map.current.getSource("route");
+		if (!source || !("setData" in source)) return;
+
+		// Update the GeoJSON source with new coordinates
+		(source as mapboxgl.GeoJSONSource).setData(geojson);
+
+		// Only update view if there are coordinates
+		if (coordinates.length > 0) {
+			// Calculate bounds and bearing for non-empty coordinates
+			const start = coordinates[0];
+			const end = coordinates[coordinates.length - 1];
+			const bearing = calculateBearing(start, end);
+
+			// Fit bounds with pitch and bearing
+			map.current.flyTo({
+				center: [start[1], start[0]], // Start point in [longitude, latitude]
+				zoom: 17, // High zoom level for close-up view
+				pitch: 45, // 45-degree tilt
+				bearing: bearing, // Points towards the end
+				speed: 1, // Animation speed
+				curve: 1, // Smooth animation curve
+			});
 		}
-	}, [coordinates, geojson]); // Runs whenever coordinates prop changes
+	}, [coordinates, geojson, calculateBearing]); // Dependencies are coordinates, geojson, and calculateBearing
 
 	// Render a square map container
 	return (
@@ -199,6 +165,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ coordinates }) => {
 			/>
 		</div>
 	);
-};
+});
+
+// Add display name for debugging
+MapComponent.displayName = "MapComponent";
 
 export default MapComponent;

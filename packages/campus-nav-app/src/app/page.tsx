@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -79,6 +79,12 @@ export default function Home() {
     setStartLng('-117.3970');
   };
 
+  // Memoize the MapComponent to prevent re-renders when form inputs change
+  const memoizedMap = useMemo(() => {
+    // Only pass coordinates if path exists and is not empty
+    return <MapComponent coordinates={path && path.length > 0 ? path : []} />;
+  }, [path]); // Only re-render when path changes
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
       <main className="grid grid-cols-1 sm:grid-cols-2 gap-8 items-center w-full">
@@ -154,7 +160,7 @@ export default function Home() {
             </Collapsible>
           )}
         </div>
-        <MapComponent coordinates={path || []} />
+        {memoizedMap}
       </main>
     </div>
   );
