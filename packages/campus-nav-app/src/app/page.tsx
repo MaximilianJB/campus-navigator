@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -15,6 +15,7 @@ export default function Home() {
   const [path, setPath] = useState<[number, number][] | null>(null); // Typed as array of [lat, lng] pairs
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cameraMode, setCameraMode] = useState<'aerial' | 'start'>('start');
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://calculatecampuspath-842151361761.us-central1.run.app';
 
@@ -60,6 +61,8 @@ export default function Home() {
 
       const data = await response.json();
       setPath(data.path);
+      // Set default camera view to start when path is first calculated
+      setCameraMode('start');
     } catch (err) {
       if (err instanceof Error) {
         // Enhanced error message to help debug CORS or server issues
@@ -78,6 +81,15 @@ export default function Home() {
     setStartLat('47.6700');
     setStartLng('-117.3970');
   };
+
+  // Memoize the MapComponent to prevent re-renders when form inputs change
+  const memoizedMap = useMemo(() => {
+    // Only pass coordinates if path exists and is not empty
+    return <MapComponent
+      coordinates={path && path.length > 0 ? path : []}
+      cameraMode={cameraMode}
+    />;
+  }, [path, cameraMode]); // Re-render when path or camera mode changes
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
@@ -145,16 +157,50 @@ export default function Home() {
 
           {error && <div className="text-red-500 mt-4">{error}</div>}
 
-          {path && (
-            <Collapsible className="mt-4 w-full max-w-md">
-              <CollapsibleTrigger className="w-full">View Path</CollapsibleTrigger>
-              <CollapsibleContent>
-                <pre className="bg-gray-100 p-4 rounded mt-2">{JSON.stringify(path, null, 2)}</pre>
-              </CollapsibleContent>
-            </Collapsible>
+          {/* Success block with camera controls */}
+          {path && path.length > 0 && (
+            <div className="bg-green-100 border border-green-200 rounded-lg p-4 mt-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-green-700 font-medium">Path Calculated!</h3>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={cameraMode === 'aerial' ? 'default' : 'outline'}
+                    onClick={() => setCameraMode('aerial')}
+                    className="text-xs py-1 h-auto"
+                  >
+                    Aerial View
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={cameraMode === 'start' ? 'default' : 'outline'}
+                    onClick={() => setCameraMode('start')}
+                    className="text-xs py-1 h-auto"
+                  >
+                    Start View
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <Collapsible className="w-full max-w-md">
+                  <CollapsibleTrigger className="text-sm text-green-600 underline cursor-pointer">
+                    Toggle View Path Data
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <pre className="bg-white p-4 rounded mt-2 text-xs overflow-auto max-h-40">
+                      {JSON.stringify(path, null, 2)}
+                    </pre>
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+            </div>
           )}
         </div>
-        <MapComponent coordinates={path || []} />
+        {memoizedMap}
       </main>
     </div>
   );
