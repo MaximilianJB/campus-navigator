@@ -7,9 +7,11 @@ import simplify from "simplify-js"
 // Define the props interface for the component
 interface MapComponentProps {
 	coordinates: [number, number][]; // 2D array of [latitude, longitude]
+	cameraMode: 'aerial' | 'start';
+	onBoundsCalculated?: (hasBounds: boolean) => void;
 }
 
-const MapComponent: React.FC<MapComponentProps> = memo(({ coordinates }) => {
+const MapComponent: React.FC<MapComponentProps> = memo(({ coordinates, cameraMode, onBoundsCalculated }) => {
 	// Type the refs for the map container and map instance
 	const mapContainer = useRef<HTMLDivElement | null>(null);
 	const map = useRef<mapboxgl.Map | null>(null);
@@ -55,6 +57,57 @@ const MapComponent: React.FC<MapComponentProps> = memo(({ coordinates }) => {
 		},
 		[toRadians, toDegrees]
 	);
+
+	// Calculate bounds from coordinates
+	const calculateBounds = useCallback((coords: [number, number][]): mapboxgl.LngLatBounds | null => {
+		if (coords.length === 0) return null;
+
+		const bounds = new mapboxgl.LngLatBounds();
+
+		// Add all points to the bounds
+		coords.forEach(([lat, lng]) => {
+			bounds.extend([lng, lat]);
+		});
+
+		return bounds;
+	}, []);
+
+	// Camera control functions
+	const setAerialView = useCallback(() => {
+		if (!map.current || coordinates.length === 0) return;
+
+		// Calculate bounds for all coordinates
+		const bounds = calculateBounds(coordinates);
+		if (!bounds) return;
+
+		// Fit to bounds with a top-down view
+		map.current.fitBounds(bounds, {
+			padding: 50,
+			pitch: 0, // Top-down view
+			bearing: 0, // North-oriented
+			maxZoom: 16, // Limit max zoom to ensure we can see enough context
+			duration: 1500 // Animation duration in ms
+		});
+	}, [coordinates, calculateBounds]);
+
+	const setStartView = useCallback(() => {
+		if (!map.current || coordinates.length === 0) return;
+
+		const start = coordinates[0];
+		const end = coordinates[coordinates.length - 1];
+		const bearing = calculateBearing(start, end);
+
+		// Focus on the start with a tilted view
+		map.current.flyTo({
+			center: [start[1], start[0]], // Start point in [longitude, latitude]
+			zoom: 17, // High zoom level for close-up view
+			pitch: 45, // 45-degree tilt
+			bearing: bearing, // Points towards the end
+			speed: 1, // Animation speed
+			curve: 1, // Smooth animation curve
+			duration: 1500 // Animation duration in ms
+		});
+	}, [coordinates, calculateBearing]);
 
 	// Initialize the map only once when the component mounts
 	useEffect(() => {
@@ -126,22 +179,20 @@ const MapComponent: React.FC<MapComponentProps> = memo(({ coordinates }) => {
 
 		// Only update view if there are coordinates
 		if (coordinates.length > 0) {
-			// Calculate bounds and bearing for non-empty coordinates
-			const start = coordinates[0];
-			const end = coordinates[coordinates.length - 1];
-			const bearing = calculateBearing(start, end);
-
-			// Fit bounds with pitch and bearing
-			map.current.flyTo({
-				center: [start[1], start[0]], // Start point in [longitude, latitude]
-				zoom: 17, // High zoom level for close-up view
-				pitch: 45, // 45-degree tilt
-				bearing: bearing, // Points towards the end
-				speed: 1, // Animation speed
-				curve: 1, // Smooth animation curve
-			});
+			// Use the current camera mode to determine how to position the camera
+			if (cameraMode === 'aerial') {
+				setAerialView();
+			} else {
+				setStartView();
+			}
 		}
-	}, [coordinates, geojson, calculateBearing]); // Dependencies are coordinates, geojson, and calculateBearing
+
+		// Notify parent component about bounds calculation
+		if (onBoundsCalculated) {
+			const bounds = calculateBounds(coordinates);
+			onBoundsCalculated(bounds !== null);
+		}
+	}, [coordinates, geojson, cameraMode, setAerialView, setStartView, onBoundsCalculated, calculateBounds]); // Fixed by adding calculateBounds
 
 	// Render a square map container
 	return (
