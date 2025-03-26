@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GetLocationButton from '@/components/custom/GetLocationButton';
 import MapComponent from '@/components/custom/MapComponent';
-import SchedulePlanningMode from '@/components/custom/SchedulePlanningMode';
+import SchedulePlanningMode, { ScheduleEntrance } from '@/components/custom/SchedulePlanningMode';
+import { generatePath, LocationPoint } from '@/lib/pathUtils';
 
 export default function Home() {
   const [startLat, setStartLat] = useState('');
@@ -19,9 +20,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [cameraMode, setCameraMode] = useState<'aerial' | 'start'>('start');
   const [currentTab, setCurrentTab] = useState('manual');
-  const [entrances, setEntrances] = useState<{ lat: number; lon: number; name: string }[]>([]);
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://calculatecampuspath-842151361761.us-central1.run.app';
+  const [entrances, setEntrances] = useState<ScheduleEntrance[]>([]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -47,32 +46,20 @@ export default function Home() {
     setEntrances([]);
 
     try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          start_lat: startLatNum,
-          start_lng: startLngNum,
-          end_lat: endLatNum,
-          end_lng: endLngNum,
-        }),
-      });
+      // Use the new utility function to generate the path
+      const points: LocationPoint[] = [
+        { lat: startLatNum, lon: startLngNum },
+        { lat: endLatNum, lon: endLngNum }
+      ];
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Network response was not ok: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      setPath(data.path);
+      const pathData = await generatePath(points);
+      setPath(pathData);
       // Set default camera view to start when path is first calculated
       setCameraMode('start');
     } catch (err) {
       if (err instanceof Error) {
-        // Enhanced error message to help debug CORS or server issues
-        setError(`Failed to fetch path: ${err.message}${err.message.includes('CORS') ? ' (Check API CORS settings)' : ''}`);
+        // Enhanced error message to help debug issues
+        setError(`Failed to generate path: ${err.message}`);
       } else {
         setError('An unknown error occurred');
       }
@@ -100,6 +87,17 @@ export default function Home() {
     }
   };
 
+  // Handle entrances change from SchedulePlanningMode
+  const handleEntrancesChange = useCallback((newEntrances: ScheduleEntrance[]) => {
+    setEntrances(newEntrances);
+  }, []);
+
+  // Handle path generated from the schedule
+  const handlePathGenerated = useCallback((generatedPath: [number, number][]) => {
+    setPath(generatedPath);
+    setCameraMode('aerial'); // Switch to aerial view to see the entire path
+  }, []);
+
   // Memoize the MapComponent to prevent re-renders when form inputs change
   const memoizedMap = useMemo(() => {
     // For manual mode, use path coordinates
@@ -113,7 +111,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="grid grid-cols-1 sm:grid-cols-2 gap-8 items-center w-full">
+      <main className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center w-full">
         <div className='flex flex-col flex-1 gap-6'>
           <h1 className="text-3xl font-bold">Campus Navigator</h1>
 
@@ -230,7 +228,8 @@ export default function Home() {
 
             <TabsContent value="schedule" className="border rounded-md p-4 mt-4">
               <SchedulePlanningMode
-
+                onEntrancesChange={handleEntrancesChange}
+                onPathGenerated={handlePathGenerated}
               />
             </TabsContent>
           </Tabs>
