@@ -7,6 +7,7 @@ from shapely.ops import unary_union
 from rasterio.features import rasterize
 from affine import Affine
 from pyproj import Transformer
+from grid_utils import GridUtils
 
 class GeoJSONGridProcessor:
     def __init__(self, geojson_filename="campus_detailed_2.24.geojson", cell_size=2):
@@ -18,11 +19,25 @@ class GeoJSONGridProcessor:
 
         # Convert lat/lon to UTM for accurate grid mapping
         self.transformer = Transformer.from_crs("epsg:4326", "epsg:32611", always_xy=True)
-        self.ZERO_POINT = self.latlon_to_utm(47.6619, -117.4095)
-        self.END_POINT = self.latlon_to_utm(47.6706, -117.3967)
-        self.GRID_SIZE = (int((self.END_POINT[1] - self.ZERO_POINT[1]) / self.cell_size),
-                             int((self.END_POINT[0] - self.ZERO_POINT[0]) / self.cell_size))
-
+        # Expand the bounding box slightly to ensure we capture all features
+        self.ZERO_POINT = self.latlon_to_utm(47.6615, -117.4100)  # Slightly SW
+        self.END_POINT = self.latlon_to_utm(47.6710, -117.3962)   # Slightly NE
+        
+        # Calculate grid dimensions
+        utm_width = self.END_POINT[0] - self.ZERO_POINT[0]
+        utm_height = self.END_POINT[1] - self.ZERO_POINT[1]
+        
+        # Ensure cell_size is in UTM units (meters)
+        self.utm_cell_size = 2.0  # 2 meters per cell
+        
+        self.GRID_SIZE = (
+            int(utm_height / self.utm_cell_size),
+            int(utm_width / self.utm_cell_size)
+        )
+        
+        print(f"Grid dimensions: {self.GRID_SIZE}")
+        print(f"UTM bounds: ({self.ZERO_POINT}, {self.END_POINT})")
+        
         self.generated_grid = self.generate_grid()
         if self.generated_grid is not None and np.any(self.generated_grid == 1):
             self.save_grid()
@@ -31,6 +46,18 @@ class GeoJSONGridProcessor:
 
     def latlon_to_utm(self, lat, lon):
         return self.transformer.transform(lon, lat)
+
+    def utm_to_grid_coords(self, x, y):
+        """Convert UTM coordinates to grid coordinates"""
+        # Calculate relative position in UTM space
+        rel_x = x - self.ZERO_POINT[0]
+        rel_y = self.END_POINT[1] - y  # Flip Y axis
+        
+        # Convert to grid coordinates
+        col = int(rel_x / self.utm_cell_size)
+        row = int(rel_y / self.utm_cell_size)
+        
+        return row, col
 
     def load_geojson(self):
         try:
@@ -100,74 +127,55 @@ class GeoJSONGridProcessor:
             json.dump(stored_data, file, indent=4)
             print(f"Grid saved successfully to {save_path}")
 
-    def process_entrances(self, entrance_geojson="entrances.geojson"):
-        entrance_path = os.path.join(os.path.dirname(__file__), entrance_geojson)
+    def process_entrances(self, entrances_geojson="entrances.geojson"):
+        entrances_path = os.path.join(os.path.dirname(__file__), entrances_geojson)
         try:
-            with open(entrance_path, "r", encoding="utf-8") as file:
-                entrance_data = json.load(file)
+            with open(entrances_path, "r", encoding="utf-8") as file:
+                entrances_data = json.load(file)
             print("Successfully loaded Entrances GeoJSON!")
         except FileNotFoundError:
-            print(f"Error: Entrances GeoJSON file not found at {entrance_path}")
+            print(f"Error: Entrances GeoJSON file not found at {entrances_path}")
             return
 
-        entrance_polygons = []
+        # Initialize grid utils
+        grid_utils = GridUtils(self.utm_cell_size, self.generated_grid)
         entrance_points = []
 
-        for feature in entrance_data["features"]:
+        for feature in entrances_data["features"]:
             geom = shape(feature["geometry"])
-            if geom.geom_type in ["Polygon", "MultiPolygon"]:
-                entrance_polygons.append(geom)
-            elif geom.geom_type == "Point":
-                entrance_points.append(geom)
+            if geom.geom_type == "Point":
+                # Convert to UTM
+                utm_x, utm_y = self.latlon_to_utm(geom.y, geom.x)
+                
+                # Convert to grid coordinates
+                grid_row, grid_col = self.utm_to_grid_coords(utm_x, utm_y)
+                
+                # Ensure coordinates are within grid bounds
+                if (0 <= grid_row < self.GRID_SIZE[0] and 
+                    0 <= grid_col < self.GRID_SIZE[1]):
+                    # Check if this point is on a building edge
+                    if grid_utils.is_on_building_edge(grid_row, grid_col):
+                        entrance_points.append((grid_row, grid_col))
+                        # Add adjacent cells to make entrance more visible
+                        for dr in [-1, 0, 1]:
+                            for dc in [-1, 0, 1]:
+                                new_row, new_col = grid_row + dr, grid_col + dc
+                                if (0 <= new_row < self.GRID_SIZE[0] and 
+                                    0 <= new_col < self.GRID_SIZE[1] and
+                                    grid_utils.is_on_building_edge(new_row, new_col)):
+                                    entrance_points.append((new_row, new_col))
+                    else:
+                        print(f"Warning: Entrance at ({grid_row}, {grid_col}) is not on building edge")
 
-        if not entrance_polygons and not entrance_points:
-            print("Warning: No valid entrance features found in GeoJSON.")
-            return
+        # Create entrance grid
+        entrance_grid = np.zeros_like(self.generated_grid)
+        for row, col in entrance_points:
+            entrance_grid[row, col] = 1
+        
+        print(f"Processed {len(set(entrance_points))} entrance points")
+        return entrance_grid
 
-        # Rasterize polygon entrances (as filled areas)
-        entrance_grid = rasterize(
-        [(poly, 2) for poly in entrance_polygons],
-            out_shape=self.GRID_SIZE,
-            transform=Affine.translation(self.ZERO_POINT[0], self.END_POINT[1]) * Affine.scale(
-                (self.END_POINT[0] - self.ZERO_POINT[0]) / self.GRID_SIZE[1],
-                -(self.END_POINT[1] - self.ZERO_POINT[1]) / self.GRID_SIZE[0]
-            ),
-            fill=0,
-            all_touched=True
-        )
-
-        # Convert entrance points to grid indices and mark them distinctly
-        for point in entrance_points:
-            x, y = self.latlon_to_utm(point.y, point.x)  # Convert lat/lon to UTM
-            col = int((x - self.ZERO_POINT[0]) / self.cell_size)
-            row = int((self.END_POINT[1] - y) / self.cell_size)
-
-            if 0 <= row < self.GRID_SIZE[0] and 0 <= col < self.GRID_SIZE[1]:
-                entrance_grid[row, col] = 3  # Mark entrance points distinctly
-
-        # Save to grid_storage.json
-        entrance_data = {entrance_geojson: entrance_grid.tolist()}
-        save_path = os.path.join(os.path.dirname(__file__), "grid_storage.json")
-
-        try:
-            with open(save_path, "r", encoding="utf-8") as file:
-                stored_data = json.load(file)
-        except (FileNotFoundError, json.JSONDecodeError):
-            stored_data = {}
-
-        stored_data.update(entrance_data)
-        with open(save_path, "w", encoding="utf-8") as file:
-            json.dump(stored_data, file, indent=4)
-            print(f"Entrance grid (including points) saved successfully to {save_path}")
-
-        # Find and print all non-zero values in the entrance grid
-        non_zero_cells = np.column_stack(np.where(entrance_grid > 0))
-        if non_zero_cells.size == 0:
-            print("Error: No entrance cells detected in the saved grid.")
-        else:
-            print("Entrance cells (coordinates of 2s and 3s):", non_zero_cells)
-
-    def process_hallways(self, hallways_geojson="hallways.geojson", buffer_size=None):
+    def process_hallways(self, hallways_geojson="hallways.geojson"):
         hallways_path = os.path.join(os.path.dirname(__file__), hallways_geojson)
         try:
             with open(hallways_path, "r", encoding="utf-8") as file:
@@ -177,71 +185,60 @@ class GeoJSONGridProcessor:
             print(f"Error: Hallways GeoJSON file not found at {hallways_path}")
             return
 
-        hallway_lines = []
+        # Initialize grid utils and get entrance points
+        grid_utils = GridUtils(self.utm_cell_size, self.generated_grid)
+        entrance_grid = self.process_entrances()  # Get entrance points first
+        hallway_points = []
+
         for feature in hallways_data["features"]:
             geom = shape(feature["geometry"])
             if geom.geom_type == "LineString":
-                hallway_lines.append(geom)
+                # Convert all coordinates to UTM
+                utm_coords = [
+                    self.latlon_to_utm(lat, lon) 
+                    for lon, lat in geom.coords
+                ]
+                
+                # Convert to grid coordinates
+                grid_coords = [
+                    self.utm_to_grid_coords(x, y)
+                    for x, y in utm_coords
+                ]
+                
+                # Process each segment of the hallway
+                for i in range(len(grid_coords) - 1):
+                    start = grid_coords[i]
+                    end = grid_coords[i + 1]
+                    
+                    # Use Bresenham's line algorithm to get all points along the line
+                    line_points = grid_utils._bresenham_line(
+                        start[0], start[1], 
+                        end[0], end[1]
+                    )
+                    
+                    # Add points and only their immediate neighbors (max width 2)
+                    for row, col in line_points:
+                        if (0 <= row < self.GRID_SIZE[0] and 
+                            0 <= col < self.GRID_SIZE[1]):
+                            # Check if this point is not an entrance
+                            if entrance_grid[row, col] != 1:
+                                hallway_points.append((row, col))
+                                # Add only immediate left/right or up/down neighbors
+                                for dr, dc in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                                    new_row, new_col = row + dr, col + dc
+                                    if (0 <= new_row < self.GRID_SIZE[0] and 
+                                        0 <= new_col < self.GRID_SIZE[1] and
+                                        entrance_grid[new_row, new_col] != 1):  # Don't overwrite entrances
+                                        hallway_points.append((new_row, new_col))
 
-        if not hallway_lines:
-            print("Warning: No valid hallway LineStrings found in GeoJSON.")
-            return
-
-        # Set default buffer size to at least the cell size
-        buffer_size = buffer_size or self.cell_size
-
-        # Convert hallways from lat/lon to UTM for accuracy
-        buffered_hallways = [
-            LineString([self.latlon_to_utm(lat, lon) for lon, lat in line.coords]).buffer(buffer_size, cap_style=2)
-            for line in hallway_lines
-        ]
-
-        # Merge all buffered hallways
-        hallway_union = unary_union(buffered_hallways)
-
-        # Check if any hallway exists after buffering
-        if hallway_union.is_empty:
-            print("Error: No valid buffered hallways detected after transformation.")
-            return
-
-        print("Buffered Hallway Polygons Created!")
-    
-        # Rasterize the buffered hallways onto the grid
-        hallway_grid = rasterize(
-            [(hallway_union, 3)],  # Mark hallways distinctly with value 3
-            out_shape=self.GRID_SIZE,
-            transform=Affine.translation(self.ZERO_POINT[0], self.END_POINT[1]) * Affine.scale(
-                (self.END_POINT[0] - self.ZERO_POINT[0]) / self.GRID_SIZE[1],
-                -(self.END_POINT[1] - self.ZERO_POINT[1]) / self.GRID_SIZE[0]
-            ),
-            fill=0,
-            all_touched=True  # Ensure that all touched cells are counted
-        )
-
-        # Check if rasterization worked
-        non_zero_hallways = np.column_stack(np.where(hallway_grid == 3))
-        if non_zero_hallways.size == 0:
-            print("Error: No hallway cells detected after rasterization.")
-        else:
-            print("Hallway cells (coordinates of 3s):", non_zero_hallways)
-
-        # Save hallways to grid_storage.json
-        hallway_data = {hallways_geojson: hallway_grid.tolist()}
-        save_path = os.path.join(os.path.dirname(__file__), "grid_storage.json")
-
-        try:
-            with open(save_path, "r", encoding="utf-8") as file:
-                stored_data = json.load(file)
-        except (FileNotFoundError, json.JSONDecodeError):
-            stored_data = {}
-
-        stored_data.update(hallway_data)
-        with open(save_path, "w", encoding="utf-8") as file:
-            json.dump(stored_data, file, indent=4)
-            print(f"Hallway grid saved successfully to {save_path}")
-
-        # **Check Entrances and Intersections**
-        self.check_entrance_intersections(hallway_union)
+        # Create hallway grid
+        hallway_grid = np.zeros_like(self.generated_grid)
+        for row, col in hallway_points:
+            if entrance_grid[row, col] != 1:  # Final check to ensure we don't overwrite entrances
+                hallway_grid[row, col] = 1
+        
+        print(f"Processed {len(set(hallway_points))} hallway points")
+        return hallway_grid
 
     def check_entrance_intersections(self, hallway_union):
             """ Checks how many entrances exist and how many intersect with hallways. """
