@@ -1,9 +1,11 @@
 import tkinter as tk
 import json
-from a_star import a_star
+from a_star import a_star, apply_padding
+from path_smoothing import get_smooth_path_points
 
 # Constants
 SQUARE_SIZE = 2
+PATH_SMOOTHING = 0.5  # Adjustable smoothing factor (0 to 1)
 
 # Color scheme for different layers
 LAYER_COLORS = {
@@ -120,7 +122,7 @@ class GridApp:
             if cell_value in [0, 2, 3]:  # Allow on empty space, entrances, or hallways
                 self.start = (y, x)
                 self.update_grid()
-                self.run_pathfinding()
+                self.find_path()
 
     def set_end(self, event):
         """Handles setting the end position."""
@@ -138,7 +140,7 @@ class GridApp:
             if cell_value in [0, 2, 3]:  # Allow on empty space, entrances, or hallways
                 self.end = (y, x)
                 self.update_grid()
-                self.run_pathfinding()
+                self.find_path()
 
     def update_grid(self):
         """Redraws grid with start (yellow) and end (magenta) markers."""
@@ -156,38 +158,105 @@ class GridApp:
         grid_width = len(self.base_grid[0])
         pathfinding_grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
         
+        # First, mark buildings
         for i in range(grid_height):
             for j in range(grid_width):
-                # Start with checking if it's a building
                 if self.base_grid[i][j] == 1:
                     pathfinding_grid[i][j] = 1
-                
-                # If it's an entrance or hallway, mark as traversable (0)
+        
+        # Get hallways and entrances
+        hallways_and_entrances = set()
+        for i in range(grid_height):
+            for j in range(grid_width):
                 if (self.grid_data["entrances.geojson"][i][j] == 1 or 
                     self.grid_data["hallways.geojson"][i][j] == 1):
-                    pathfinding_grid[i][j] = 0
+                    hallways_and_entrances.add((i, j))
+                    # Add adjacent cells to ensure good connectivity
+                    for di in [-1, 0, 1]:
+                        for dj in [-1, 0, 1]:
+                            ni, nj = i + di, j + dj
+                            if (0 <= ni < grid_height and 
+                                0 <= nj < grid_width):
+                                hallways_and_entrances.add((ni, nj))
+        
+        # Apply graduated padding to buildings
+        from a_star import apply_padding
+        pathfinding_grid = apply_padding(pathfinding_grid, 2)  # Use smaller padding
+        
+        # Make hallways and entrances fully traversable
+        for i, j in hallways_and_entrances:
+            pathfinding_grid[i][j] = 0
         
         return pathfinding_grid
 
-    def run_pathfinding(self):
-        """Runs A* algorithm if both start and end are selected and draws the path."""
+    def find_path(self):
+        """Find and draw path between start and end points"""
         if self.start and self.end:
             # Get grid suitable for pathfinding
             pathfinding_grid = self.get_pathfinding_grid()
             
             # Find path
-            path = a_star(pathfinding_grid, self.start, self.end, custom_padding=0)  # No padding needed
+            path = a_star(pathfinding_grid, self.start, self.end)
             
-            # Draw path
             if path:
                 # Clear any existing path
                 self.draw_grid()
                 
-                # Draw new path
-                for y, x in path:
-                    if (y, x) != self.start and (y, x) != self.end:
-                        px, py = x * self.cell_size, y * self.cell_size
-                        self.canvas.create_rectangle(px, py, px + self.cell_size, py + self.cell_size, fill="cyan", outline="black")
+                # Draw the smooth path
+                self.draw_path(path)
+                
+                # Mark start and end points
+                if self.start:
+                    sx, sy = self.start[1] * self.cell_size, self.start[0] * self.cell_size
+                    self.canvas.create_rectangle(sx, sy, sx + self.cell_size, sy + self.cell_size, 
+                                              fill="yellow", outline="black")
+                if self.end:
+                    ex, ey = self.end[1] * self.cell_size, self.end[0] * self.cell_size
+                    self.canvas.create_rectangle(ex, ey, ex + self.cell_size, ey + self.cell_size, 
+                                              fill="magenta", outline="black")
+
+    def draw_path(self, path):
+        """Draw the path with smooth curves"""
+        if not path:
+            return
+            
+        # Get smoothed path points
+        smooth_points = get_smooth_path_points(path, self.cell_size, PATH_SMOOTHING)
+        
+        # Draw the smooth path
+        if len(smooth_points) > 1:
+            # Convert points to flat list for create_line
+            flat_coords = []
+            for x, y in smooth_points:
+                flat_coords.extend([x, y])
+            
+            # Draw smooth curve
+            self.canvas.create_line(
+                flat_coords,
+                fill=LAYER_COLORS[9],
+                width=self.cell_size,  # Line width matches cell size
+                capstyle=tk.ROUND,     # Round end caps
+                joinstyle=tk.ROUND,    # Round corners
+                smooth=True            # Enable smoothing
+            )
+            
+            # Draw start and end markers
+            start_x, start_y = smooth_points[0]
+            end_x, end_y = smooth_points[-1]
+            
+            # Start marker (yellow)
+            self.canvas.create_oval(
+                start_x - self.cell_size, start_y - self.cell_size,
+                start_x + self.cell_size, start_y + self.cell_size,
+                fill="yellow", outline="black"
+            )
+            
+            # End marker (magenta)
+            self.canvas.create_oval(
+                end_x - self.cell_size, end_y - self.cell_size,
+                end_x + self.cell_size, end_y + self.cell_size,
+                fill="magenta", outline="black"
+            )
 
 def main():
     grid_file = "c:/Users/not3t/CampusNav/campus-navigator/packages/data-processing/grid_storage.json"
