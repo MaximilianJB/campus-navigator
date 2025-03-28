@@ -1,0 +1,662 @@
+[
+  {
+    "name": "Kennedy",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6686,
+        "lon": -117.4081
+      }
+    ]
+  },
+  {
+    "name": "Tilford",
+    "entrances": [
+      {
+        "name": "North",
+        "lat": 47.6679,
+        "lon": -117.4086
+      },
+      {
+        "name": "South",
+        "lat": 47.6675,
+        "lon": -117.4088
+      }
+    ]
+  },
+  {
+    "name": "Dussault A",
+    "entrances": [
+      {
+        "name": "North",
+        "lat": 47.6672,
+        "lon": -117.4083
+      },
+      {
+        "name": "West",
+        "lat": 47.6671,
+        "lon": -117.4087
+      }
+    ]
+  },
+  {
+    "name": "Dussault B",
+    "entrances": [
+      {
+        "name": "North",
+        "lat": 47.6668,
+        "lon": -117.4082
+      },
+      {
+        "name": "West",
+        "lat": 47.6667,
+        "lon": -117.4086
+      },
+      {
+        "name": "South",
+        "lat": 47.6667,
+        "lon": -117.4083
+      }
+    ]
+  },
+  {
+    "name": "Dussault C",
+    "entrances": [
+      {
+        "name": "West",
+        "lat": 47.6664,
+        "lon": -117.4086
+      },
+      {
+        "name": "South",
+        "lat": 47.6663,
+        "lon": -117.4083
+      }
+    ]
+  },
+  {
+    "name": "Journalism & Broadcast",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6686,
+        "lon": -117.4074
+      }
+    ]
+  },
+  {
+    "name": "Music Annex",
+    "entrances": [
+      {
+        "name": "North",
+        "lat": 47.6683,
+        "lon": -117.4076
+      },
+      {
+        "name": "East",
+        "lat": 47.6682,
+        "lon": -117.4073
+      },
+      {
+        "name": "South",
+        "lat": 47.668,
+        "lon": -117.4075
+      }
+    ]
+  },
+  {
+    "name": "Burch A",
+    "entrances": [
+      {
+        "name": "East",
+        "lat": 47.6693,
+        "lon": -117.407
+      },
+      {
+        "name": "South",
+        "lat": 47.6692,
+        "lon": -117.4067
+      }
+    ]
+  },
+  {
+    "name": "Music Hall",
+    "entrances": [
+      {
+        "name": "North",
+        "lat": 47.6682,
+        "lon": -117.4063
+      },
+      {
+        "name": "South",
+        "lat": 47.6679,
+        "lon": -117.4063
+      }
+    ]
+  },
+  {
+    "name": "Myrtle Woldson Center",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6672,
+        "lon": -117.4067
+      }
+    ]
+  },
+  {
+    "name": "Jundt Center",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6665,
+        "lon": -117.407
+      }
+    ]
+  },
+  {
+    "name": "Dooley",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6693,
+        "lon": -117.4055
+      }
+    ]
+  },
+  {
+    "name": "Jepson",
+    "entrances": [
+      {
+        "name": "West",
+        "lat": 47.6673,
+        "lon": -117.4056
+      },
+      {
+        "name": "East",
+        "lat": 47.6673,
+        "lon": -117.405
+      },
+      {
+        "name": "South",
+        "lat": 47.6669,
+        "lon": -117.405
+      }
+    ]
+  },
+  {
+    "name": "Robinson House",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6686,
+        "lon": -117.4044
+      }
+    ]
+  },
+  {
+    "name": "St. Aloysius",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6682,
+        "lon": -117.4042
+      }
+    ]
+  },
+  {
+    "name": "Humanities Building",
+    "entrances": [
+      {
+        "name": "West",
+        "lat": 47.6672,
+        "lon": -117.4041
+      },
+      {
+        "name": "East",
+        "lat": 47.6672,
+        "lon": -117.4038
+      }
+    ]
+  },
+  {
+    "name": "Cataldo",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6686,
+        "lon": -117.4036
+      }
+    ]
+  },
+  {
+    "name": "College Hall",
+    "entrances": [
+      {
+        "name": "NorthWest",
+        "lat": 47.6682,
+        "lon": -117.4031
+      },
+      {
+        "name": "West",
+        "lat": 47.6681,
+        "lon": -117.4034
+      },
+      {
+        "name": "SouthWest 1",
+        "lat": 47.668,
+        "lon": -117.4032
+      },
+      {
+        "name": "SouthWest 2",
+        "lat": 47.668,
+        "lon": -117.4029
+      },
+      {
+        "name": "NorthEast",
+        "lat": 47.6682,
+        "lon": -117.4019
+      },
+      {
+        "name": "SouthEast",
+        "lat": 47.668,
+        "lon": -117.4019
+      }
+    ]
+  },
+  {
+    "name": "Hughes Hall",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.667,
+        "lon": -117.403
+      }
+    ]
+  },
+  {
+    "name": "Herek",
+    "entrances": [
+      {
+        "name": "West",
+        "lat": 47.6668,
+        "lon": -117.4027
+      },
+      {
+        "name": "East",
+        "lat": 47.6668,
+        "lon": -117.4018
+      },
+      {
+        "name": "South",
+        "lat": 47.6665,
+        "lon": -117.402
+      }
+    ]
+  },
+  {
+    "name": "Paccar",
+    "entrances": [
+      {
+        "name": "East",
+        "lat": 47.6664,
+        "lon": -117.4019
+      },
+      {
+        "name": "North",
+        "lat": 47.6664,
+        "lon": -117.4025
+      },
+      {
+        "name": "South",
+        "lat": 47.6662,
+        "lon": -117.4025
+      }
+    ]
+  },
+  {
+    "name": "Bollier",
+    "entrances": [
+      {
+        "name": "East",
+        "lat": 47.6663,
+        "lon": -117.4028
+      },
+      {
+        "name": "South",
+        "lat": 47.6662,
+        "lon": -117.4038
+      },
+      {
+        "name": "North",
+        "lat": 47.6664,
+        "lon": -117.4037
+      },
+      {
+        "name": "West",
+        "lat": 47.6664,
+        "lon": -117.404
+      }
+    ]
+  },
+  {
+    "name": "Crimont",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6702,
+        "lon": -117.4017
+      }
+    ]
+  },
+  {
+    "name": "Corkery A",
+    "entrances": [
+      {
+        "name": "West",
+        "lat": 47.6702,
+        "lon": -117.4011
+      },
+      {
+        "name": "East",
+        "lat": 47.6702,
+        "lon": -117.4007
+      }
+    ]
+  },
+  {
+    "name": "Corkery B",
+    "entrances": [
+      {
+        "name": "North",
+        "lat": 47.6703,
+        "lon": -117.4003
+      },
+      {
+        "name": "South",
+        "lat": 47.67,
+        "lon": -117.4003
+      }
+    ]
+  },
+  {
+    "name": "Corkery C",
+    "entrances": [
+      {
+        "name": "West",
+        "lat": 47.6699,
+        "lon": -117.4006
+      },
+      {
+        "name": "East",
+        "lat": 47.6699,
+        "lon": -117.4001
+      }
+    ]
+  },
+  {
+    "name": "Dillon",
+    "entrances": [
+      {
+        "name": "West",
+        "lat": 47.6692,
+        "lon": -117.4012
+      },
+      {
+        "name": "South",
+        "lat": 47.6691,
+        "lon": -117.4008
+      }
+    ]
+  },
+  {
+    "name": "Goller",
+    "entrances": [
+      {
+        "name": "South",
+        "lat": 47.6691,
+        "lon": -117.4004
+      },
+      {
+        "name": "East",
+        "lat": 47.6692,
+        "lon": -117.4
+      }
+    ]
+  },
+  {
+    "name": "Alliance",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6686,
+        "lon": -117.4002
+      }
+    ]
+  },
+  {
+    "name": "Desmet",
+    "entrances": [
+      {
+        "name": "East",
+        "lat": 47.6678,
+        "lon": -117.401
+      },
+      {
+        "name": "West",
+        "lat": 47.6678,
+        "lon": -117.4012
+      }
+    ]
+  },
+  {
+    "name": "Crosby",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6674,
+        "lon": -117.4014
+      }
+    ]
+  },
+  {
+    "name": "Foley",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6666,
+        "lon": -117.4008
+      }
+    ]
+  },
+  {
+    "name": "RFC North",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6658,
+        "lon": -117.4006
+      }
+    ]
+  },
+  {
+    "name": "RFC South",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6647,
+        "lon": -117.4006
+      }
+    ]
+  },
+  {
+    "name": "Kennel",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6658,
+        "lon": -117.3993
+      }
+    ]
+  },
+  {
+    "name": "Welch",
+    "entrances": [
+      {
+        "name": "East",
+        "lat": 47.6678,
+        "lon": -117.4002
+      },
+      {
+        "name": "South",
+        "lat": 47.6676,
+        "lon": -117.4
+      }
+    ]
+  },
+  {
+    "name": "Hemmingson",
+    "entrances": [
+      {
+        "name": "NorthWest",
+        "lat": 47.6672,
+        "lon": -117.3999
+      },
+      {
+        "name": "SouthWest",
+        "lat": 47.6669,
+        "lon": -117.3997
+      },
+      {
+        "name": "NorthEast",
+        "lat": 47.6672,
+        "lon": -117.399
+      },
+      {
+        "name": "SouthEast",
+        "lat": 47.667,
+        "lon": -117.399
+      }
+    ]
+  },
+  {
+    "name": "Lincoln",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6686,
+        "lon": -117.3994
+      }
+    ]
+  },
+  {
+    "name": "Health Center",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6694,
+        "lon": -117.3994
+      }
+    ]
+  },
+  {
+    "name": "Rosauer Center",
+    "entrances": [
+      {
+        "name": "North",
+        "lat": 47.6683,
+        "lon": -117.3991
+      },
+      {
+        "name": "South",
+        "lat": 47.668,
+        "lon": -117.3992
+      }
+    ]
+  },
+  {
+    "name": "Student Wellness Center",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6678,
+        "lon": -117.3984
+      }
+    ]
+  },
+  {
+    "name": "Sodexo",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6675,
+        "lon": -117.3984
+      }
+    ]
+  },
+  {
+    "name": "Twohy",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6687,
+        "lon": -117.3979
+      }
+    ]
+  },
+  {
+    "name": "Madonna",
+    "entrances": [
+      {
+        "name": "West",
+        "lat": 47.6669,
+        "lon": -117.3977
+      },
+      {
+        "name": "North",
+        "lat": 47.6672,
+        "lon": -117.3973
+      },
+      {
+        "name": "South",
+        "lat": 47.6665,
+        "lon": -117.3973
+      },
+      {
+        "name": "Back Door",
+        "lat": 47.6669,
+        "lon": -117.3973
+      }
+    ]
+  },
+  {
+    "name": "Cathrine Monica",
+    "entrances": [
+      {
+        "name": "North",
+        "lat": 47.6663,
+        "lon": -117.3972
+      },
+      {
+        "name": "East",
+        "lat": 47.6659,
+        "lon": -117.3969
+      },
+      {
+        "name": "West",
+        "lat": 47.6659,
+        "lon": -117.3976
+      }
+    ]
+  },
+  {
+    "name": "Law School",
+    "entrances": [
+      {
+        "name": "Main",
+        "lat": 47.6635,
+        "lon": -117.4004
+      }
+    ]
+  }
+]

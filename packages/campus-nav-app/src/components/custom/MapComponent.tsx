@@ -9,12 +9,19 @@ interface MapComponentProps {
 	coordinates: [number, number][]; // 2D array of [latitude, longitude]
 	cameraMode: 'aerial' | 'start';
 	onBoundsCalculated?: (hasBounds: boolean) => void;
+	entrances?: { lat: number; lon: number; name: string }[]; // Optional entrances to display as markers
 }
 
-const MapComponent: React.FC<MapComponentProps> = memo(({ coordinates, cameraMode, onBoundsCalculated }) => {
+const MapComponent: React.FC<MapComponentProps> = memo(({ 
+	coordinates, 
+	cameraMode, 
+	onBoundsCalculated,
+	entrances = []
+}) => {
 	// Type the refs for the map container and map instance
 	const mapContainer = useRef<HTMLDivElement | null>(null);
 	const map = useRef<mapboxgl.Map | null>(null);
+	const markersRef = useRef<mapboxgl.Marker[]>([]);
 
 	// Simplify the coordinates - memoize this calculation
 	const smoothedCoordinatesArray = useMemo(() => {
@@ -74,10 +81,18 @@ const MapComponent: React.FC<MapComponentProps> = memo(({ coordinates, cameraMod
 
 	// Camera control functions
 	const setAerialView = useCallback(() => {
-		if (!map.current || coordinates.length === 0) return;
+		if (!map.current) return;
+		
+		// Create an array of all points to include in bounds
+		const allPoints: [number, number][] = [
+			...coordinates,
+			...entrances.map(e => [e.lat, e.lon] as [number, number])
+		].filter(coord => coord[0] !== undefined && coord[1] !== undefined);
+		
+		if (allPoints.length === 0) return;
 
 		// Calculate bounds for all coordinates
-		const bounds = calculateBounds(coordinates);
+		const bounds = calculateBounds(allPoints);
 		if (!bounds) return;
 
 		// Fit to bounds with a top-down view
@@ -88,26 +103,43 @@ const MapComponent: React.FC<MapComponentProps> = memo(({ coordinates, cameraMod
 			maxZoom: 16, // Limit max zoom to ensure we can see enough context
 			duration: 1500 // Animation duration in ms
 		});
-	}, [coordinates, calculateBounds]);
+	}, [coordinates, entrances, calculateBounds]);
 
 	const setStartView = useCallback(() => {
-		if (!map.current || coordinates.length === 0) return;
+		if (!map.current) return;
+		
+		// If we have coordinates for a path, focus on the start of the path
+		if (coordinates.length > 0) {
+			const start = coordinates[0];
+			const end = coordinates.length > 1 ? coordinates[coordinates.length - 1] : coordinates[0];
+			const bearing = calculateBearing(start, end);
 
-		const start = coordinates[0];
-		const end = coordinates[coordinates.length - 1];
-		const bearing = calculateBearing(start, end);
-
-		// Focus on the start with a tilted view
-		map.current.flyTo({
-			center: [start[1], start[0]], // Start point in [longitude, latitude]
-			zoom: 17, // High zoom level for close-up view
-			pitch: 45, // 45-degree tilt
-			bearing: bearing, // Points towards the end
-			speed: 1, // Animation speed
-			curve: 1, // Smooth animation curve
-			duration: 1500 // Animation duration in ms
-		});
-	}, [coordinates, calculateBearing]);
+			// Focus on the start with a tilted view
+			map.current.flyTo({
+				center: [start[1], start[0]], // Start point in [longitude, latitude]
+				zoom: 17, // High zoom level for close-up view
+				pitch: 45, // 45-degree tilt
+				bearing: bearing, // Points towards the end
+				speed: 1, // Animation speed
+				curve: 1, // Smooth animation curve
+				duration: 1500 // Animation duration in ms
+			});
+		} 
+		// If we only have entrances, focus on the first entrance
+		else if (entrances.length > 0) {
+			const entrance = entrances[0];
+			
+			map.current.flyTo({
+				center: [entrance.lon, entrance.lat],
+				zoom: 17,
+				pitch: 45,
+				bearing: 0,
+				speed: 1,
+				curve: 1,
+				duration: 1500
+			});
+		}
+	}, [coordinates, entrances, calculateBearing]);
 
 	// Initialize the map only once when the component mounts
 	useEffect(() => {
@@ -177,8 +209,8 @@ const MapComponent: React.FC<MapComponentProps> = memo(({ coordinates, cameraMod
 		// Update the GeoJSON source with new coordinates
 		(source as mapboxgl.GeoJSONSource).setData(geojson);
 
-		// Only update view if there are coordinates
-		if (coordinates.length > 0) {
+		// Only update view if there are coordinates or entrances
+		if (coordinates.length > 0 || entrances.length > 0) {
 			// Use the current camera mode to determine how to position the camera
 			if (cameraMode === 'aerial') {
 				setAerialView();
@@ -192,7 +224,39 @@ const MapComponent: React.FC<MapComponentProps> = memo(({ coordinates, cameraMod
 			const bounds = calculateBounds(coordinates);
 			onBoundsCalculated(bounds !== null);
 		}
-	}, [coordinates, geojson, cameraMode, setAerialView, setStartView, onBoundsCalculated, calculateBounds]); // Fixed by adding calculateBounds
+	}, [coordinates, geojson, cameraMode, setAerialView, setStartView, onBoundsCalculated, calculateBounds, entrances]);
+	
+	// Handle entrance markers 
+	useEffect(() => {
+		// Clear existing markers
+		markersRef.current.forEach(marker => marker.remove());
+		markersRef.current = [];
+		
+		if (!map.current) return;
+		
+		// Add new markers for entrances
+		entrances.forEach(entrance => {
+			// Create a custom marker element
+			const el = document.createElement('div');
+			el.className = 'entrance-marker';
+			el.style.width = '15px';
+			el.style.height = '15px';
+			el.style.borderRadius = '50%';
+			el.style.backgroundColor = '#FF4081';
+			el.style.border = '2px solid white';
+			el.style.boxShadow = '0 0 4px rgba(0,0,0,0.4)';
+			
+			// Add tooltip with name
+			el.title = entrance.name;
+			
+			// Create and store the marker
+			const marker = new mapboxgl.Marker(el)
+				.setLngLat([entrance.lon, entrance.lat])
+				.addTo(map.current!);
+				
+			markersRef.current.push(marker);
+		});
+	}, [entrances]);
 
 	// Render a square map container
 	return (
