@@ -155,22 +155,20 @@ class GeoJSONGridProcessor:
                     0 <= grid_col < self.GRID_SIZE[1]):
                     # Check if this point is on a building edge
                     if grid_utils.is_on_building_edge(grid_row, grid_col):
-                        entrance_points.append((grid_row, grid_col))
-                        # Add adjacent cells to make entrance more visible
+                        # Add a 3x3 grid of entrance points for better traversability
                         for dr in [-1, 0, 1]:
                             for dc in [-1, 0, 1]:
                                 new_row, new_col = grid_row + dr, grid_col + dc
                                 if (0 <= new_row < self.GRID_SIZE[0] and 
                                     0 <= new_col < self.GRID_SIZE[1] and
-                                    grid_utils.is_on_building_edge(new_row, new_col)):
+                                    not (dr == 0 and dc == 0 and self.generated_grid[new_row, new_col] == 1)):  # Don't overwrite center building tile
                                     entrance_points.append((new_row, new_col))
-                    else:
-                        print(f"Warning: Entrance at ({grid_row}, {grid_col}) is not on building edge")
 
         # Create entrance grid
         entrance_grid = np.zeros_like(self.generated_grid)
         for row, col in entrance_points:
-            entrance_grid[row, col] = 1
+            if self.generated_grid[row, col] != 1:  # Don't overwrite buildings
+                entrance_grid[row, col] = 1
         
         print(f"Processed {len(set(entrance_points))} entrance points")
         return entrance_grid
@@ -216,25 +214,23 @@ class GeoJSONGridProcessor:
                         end[0], end[1]
                     )
                     
-                    # Add points and only their immediate neighbors (max width 2)
+                    # Add points with a minimum width of 3 tiles
                     for row, col in line_points:
                         if (0 <= row < self.GRID_SIZE[0] and 
                             0 <= col < self.GRID_SIZE[1]):
-                            # Check if this point is not an entrance
-                            if entrance_grid[row, col] != 1:
-                                hallway_points.append((row, col))
-                                # Add only immediate left/right or up/down neighbors
-                                for dr, dc in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-                                    new_row, new_col = row + dr, col + dc
-                                    if (0 <= new_row < self.GRID_SIZE[0] and 
-                                        0 <= new_col < self.GRID_SIZE[1] and
-                                        entrance_grid[new_row, new_col] != 1):  # Don't overwrite entrances
+                            # Add center point and neighbors in a cross pattern (+)
+                            for dr, dc in [(0, 0), (0, 1), (0, -1), (1, 0), (-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]:
+                                new_row, new_col = row + dr, col + dc
+                                if (0 <= new_row < self.GRID_SIZE[0] and 
+                                    0 <= new_col < self.GRID_SIZE[1]):
+                                    # Allow hallways to override buildings but not entrances
+                                    if entrance_grid[new_row, new_col] != 1:
                                         hallway_points.append((new_row, new_col))
 
         # Create hallway grid
         hallway_grid = np.zeros_like(self.generated_grid)
         for row, col in hallway_points:
-            if entrance_grid[row, col] != 1:  # Final check to ensure we don't overwrite entrances
+            if entrance_grid[row, col] != 1:  # Only check for entrances, allow overriding buildings
                 hallway_grid[row, col] = 1
         
         print(f"Processed {len(set(hallway_points))} hallway points")

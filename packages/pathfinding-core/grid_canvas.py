@@ -151,28 +151,39 @@ class GridApp:
             self.canvas.create_rectangle(ex, ey, ex + self.cell_size, ey + self.cell_size, fill="magenta", outline="black")
 
     def get_pathfinding_grid(self):
-        """Creates a grid for pathfinding where 1 is obstacle, 0 is traversable"""
-        height = len(self.base_grid)
-        width = len(self.base_grid[0])
-        grid = [[0 for _ in range(width)] for _ in range(height)]
+        """Creates a grid suitable for pathfinding where 1 is non-traversable and 0 is traversable"""
+        grid_height = len(self.base_grid)
+        grid_width = len(self.base_grid[0])
+        pathfinding_grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
         
-        for i in range(height):
-            for j in range(width):
-                # Mark as obstacle (1) only if it's a building and not an entrance or hallway
-                is_building = self.base_grid[i][j] == 1
-                is_entrance = self.grid_data["entrances.geojson"][i][j] == 1
-                is_hallway = self.grid_data["hallways.geojson"][i][j] == 1
+        for i in range(grid_height):
+            for j in range(grid_width):
+                # Start with checking if it's a building
+                if self.base_grid[i][j] == 1:
+                    pathfinding_grid[i][j] = 1
                 
-                grid[i][j] = 1 if (is_building and not is_entrance and not is_hallway) else 0
-                
-        return grid
+                # If it's an entrance or hallway, mark as traversable (0)
+                if (self.grid_data["entrances.geojson"][i][j] == 1 or 
+                    self.grid_data["hallways.geojson"][i][j] == 1):
+                    pathfinding_grid[i][j] = 0
+        
+        return pathfinding_grid
 
     def run_pathfinding(self):
         """Runs A* algorithm if both start and end are selected and draws the path."""
         if self.start and self.end:
+            # Get grid suitable for pathfinding
             pathfinding_grid = self.get_pathfinding_grid()
-            path = a_star(pathfinding_grid, self.start, self.end)
+            
+            # Find path
+            path = a_star(pathfinding_grid, self.start, self.end, custom_padding=0)  # No padding needed
+            
+            # Draw path
             if path:
+                # Clear any existing path
+                self.draw_grid()
+                
+                # Draw new path
                 for y, x in path:
                     if (y, x) != self.start and (y, x) != self.end:
                         px, py = x * self.cell_size, y * self.cell_size
