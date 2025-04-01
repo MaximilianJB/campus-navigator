@@ -259,7 +259,7 @@ class GridApp:
             )
 
 def main():
-    grid_file = "c:/Users/not3t/CampusNav/campus-navigator/packages/data-processing/grid_storage.json"
+    grid_file = "data-processing/grid_storage.json"
     grid_data = read_json_file(grid_file)
 
     root = tk.Tk()
