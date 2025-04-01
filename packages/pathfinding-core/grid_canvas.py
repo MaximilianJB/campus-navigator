@@ -1,7 +1,6 @@
 import tkinter as tk
 import json
 from a_star import a_star, apply_padding
-from path_smoothing import get_smooth_path_points
 
 # Constants
 SQUARE_SIZE = 2
@@ -219,15 +218,12 @@ class GridApp:
         """Draw the path with smooth curves"""
         if not path:
             return
-            
-        # Get smoothed path points
-        smooth_points = get_smooth_path_points(path, self.cell_size, PATH_SMOOTHING)
         
         # Draw the smooth path
-        if len(smooth_points) > 1:
+        if len(path) > 1:
             # Convert points to flat list for create_line
             flat_coords = []
-            for x, y in smooth_points:
+            for x, y in path:
                 flat_coords.extend([x, y])
             
             # Draw smooth curve
@@ -241,8 +237,8 @@ class GridApp:
             )
             
             # Draw start and end markers
-            start_x, start_y = smooth_points[0]
-            end_x, end_y = smooth_points[-1]
+            start_x, start_y = path[0]
+            end_x, end_y = path[-1]
             
             # Start marker (yellow)
             self.canvas.create_oval(

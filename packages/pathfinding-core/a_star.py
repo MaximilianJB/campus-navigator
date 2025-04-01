@@ -1,5 +1,6 @@
 import heapq
 import math
+from path_smoothing import get_smooth_path_points
 
 # Global padding variable
 # This creates a small buffer around all obstacles to allow for smoother pathfinding
@@ -90,7 +91,10 @@ def a_star(grid, start, end, custom_padding=None):
                 current = came_from[current]
             path.append(start)
             path.reverse()
-            return path
+            
+            # smooth the path using spline logic
+            smoothed_path = get_smooth_path_points(path, cell_size=2, smoothing_factor=0.5)
+            return smoothed_path
             
         closed_set.add(current)
         
