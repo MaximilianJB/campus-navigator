@@ -86,3 +86,23 @@ def a_star(grid, start, end, custom_padding=None):
                     heapq.heappush(open_set, (f_score[neighbor], neighbor))
     
     return []  # No path found
+
+def calculate_path_time(path, walking_speed=1.4, grid_cell_size=2.0):
+    """
+    Calculate estimated travel time for a given path.
+    Args:
+        path: List of coordinates from A* algorithm
+        walking_speed: Speed in meters per second (default 1.4 m/s ≈ 5 km/h)
+        grid_cell_size: Size of each grid cell in meters (default 2.0)
+    Returns:
+        Estimated time in minutes, rounded to one decimal place
+    """
+    if not path:
+        return 0
+        
+    total_distance = 0
+    for i in range(len(path) - 1):
+        total_distance += euclidean_distance(path[i], path[i+1]) * grid_cell_size
+        
+    # Convert seconds to minutes and round to 1 decimal place
+    return round((total_distance / walking_speed) / 60, 1)
