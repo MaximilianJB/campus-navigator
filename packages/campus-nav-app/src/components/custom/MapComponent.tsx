@@ -12,9 +12,9 @@ interface MapComponentProps {
 	entrances?: { lat: number; lon: number; name: string }[]; // Optional entrances to display as markers
 }
 
-const MapComponent: React.FC<MapComponentProps> = memo(({ 
-	coordinates, 
-	cameraMode, 
+const MapComponent: React.FC<MapComponentProps> = memo(({
+	coordinates,
+	cameraMode,
 	onBoundsCalculated,
 	entrances = []
 }) => {
@@ -82,13 +82,13 @@ const MapComponent: React.FC<MapComponentProps> = memo(({
 	// Camera control functions
 	const setAerialView = useCallback(() => {
 		if (!map.current) return;
-		
+
 		// Create an array of all points to include in bounds
 		const allPoints: [number, number][] = [
 			...coordinates,
 			...entrances.map(e => [e.lat, e.lon] as [number, number])
 		].filter(coord => coord[0] !== undefined && coord[1] !== undefined);
-		
+
 		if (allPoints.length === 0) return;
 
 		// Calculate bounds for all coordinates
@@ -107,7 +107,7 @@ const MapComponent: React.FC<MapComponentProps> = memo(({
 
 	const setStartView = useCallback(() => {
 		if (!map.current) return;
-		
+
 		// If we have coordinates for a path, focus on the start of the path
 		if (coordinates.length > 0) {
 			const start = coordinates[0];
@@ -124,11 +124,11 @@ const MapComponent: React.FC<MapComponentProps> = memo(({
 				curve: 1, // Smooth animation curve
 				duration: 1500 // Animation duration in ms
 			});
-		} 
+		}
 		// If we only have entrances, focus on the first entrance
 		else if (entrances.length > 0) {
 			const entrance = entrances[0];
-			
+
 			map.current.flyTo({
 				center: [entrance.lon, entrance.lat],
 				zoom: 17,
@@ -184,7 +184,7 @@ const MapComponent: React.FC<MapComponentProps> = memo(({
 					"line-cap": "round",
 				},
 				paint: {
-					"line-color": "#B33C86",
+					"line-color": "#161616",
 					"line-width": 3,
 				},
 			});
@@ -225,15 +225,15 @@ const MapComponent: React.FC<MapComponentProps> = memo(({
 			onBoundsCalculated(bounds !== null);
 		}
 	}, [coordinates, geojson, cameraMode, setAerialView, setStartView, onBoundsCalculated, calculateBounds, entrances]);
-	
+
 	// Handle entrance markers 
 	useEffect(() => {
 		// Clear existing markers
 		markersRef.current.forEach(marker => marker.remove());
 		markersRef.current = [];
-		
+
 		if (!map.current) return;
-		
+
 		// Add new markers for entrances
 		entrances.forEach(entrance => {
 			// Create a custom marker element
@@ -242,18 +242,18 @@ const MapComponent: React.FC<MapComponentProps> = memo(({
 			el.style.width = '15px';
 			el.style.height = '15px';
 			el.style.borderRadius = '50%';
-			el.style.backgroundColor = '#FF4081';
+			el.style.backgroundColor = '#14B8A6';
 			el.style.border = '2px solid white';
 			el.style.boxShadow = '0 0 4px rgba(0,0,0,0.4)';
-			
+
 			// Add tooltip with name
 			el.title = entrance.name;
-			
+
 			// Create and store the marker
 			const marker = new mapboxgl.Marker(el)
 				.setLngLat([entrance.lon, entrance.lat])
 				.addTo(map.current!);
-				
+
 			markersRef.current.push(marker);
 		});
 	}, [entrances]);
@@ -264,8 +264,7 @@ const MapComponent: React.FC<MapComponentProps> = memo(({
 			ref={mapContainer}
 			style={{
 				width: "100%",
-				paddingBottom: "100%", // This ensures a square aspect ratio
-				position: "relative",
+				height: "100%",
 				borderRadius: "10px",
 			}}
 		>

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Campus Navigator",
-  description: "Find the fastest route across campus",
+  title: 'GeoLoom - Navigate Your World',
+  description: 'Upload GeoJSON to create custom maps and find the fastest routes',
 };
 
 export default function RootLayout({
