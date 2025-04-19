@@ -28,7 +28,7 @@ export async function GET() {
       delimiter: '/',
       autoPaginate: false,
     });
-    const prefixes: string[] = apiResponse.prefixes || [];
+    const prefixes: string[] = (apiResponse as { prefixes?: string[] }).prefixes || [];
 
     const maps = await Promise.all(
       prefixes.map(async (prefix) => {
@@ -38,8 +38,8 @@ export async function GET() {
         if (files.length) {
           const times = files
             .map((f: File) => f.metadata.timeCreated)
-            .filter(Boolean)
-            .map((t: string) => new Date(t).getTime());
+            .filter((t): t is string => Boolean(t))
+            .map((t) => new Date(t).getTime());
           if (times.length) {
             createdAt = new Date(Math.min(...times)).toISOString();
           }
