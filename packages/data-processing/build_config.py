@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # store the grid array in a variable
     grid_json = read_json_file(json_file_path)
-    grid_array = grid_json['campus1.geojson']
+    grid_array = grid_json['campus_detailed_2.24.geojson']
     
     # store metrics about the geojson file in a variable
     geojson_square = read_geojson_file(geojson_file_path)

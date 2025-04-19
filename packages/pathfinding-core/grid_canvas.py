@@ -34,7 +34,7 @@ class GridApp:
         self.end = None
         
         # Get grid dimensions from campus1.geojson
-        self.base_grid = grid_data["campus1.geojson"]
+        self.base_grid = list(grid_data.values())[-1]
         grid_height = len(self.base_grid)
         grid_width = len(self.base_grid[0])
         
