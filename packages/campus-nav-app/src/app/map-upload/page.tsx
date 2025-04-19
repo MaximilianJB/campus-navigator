@@ -52,7 +52,10 @@ export default function MapUploadPage() {
             <Header />
             <main className="flex-1">
                 <SubPageHero titleText="Upload Custom Map" />
-                <FileUpload onChange={handleFileChange} />
+
+                <div className="px-4 lg:px-8 space-y-6">
+                    <FileUpload onChange={handleFileChange} />
+                </div>
                 <section className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8 space-y-6">
                     {selectedFile && (
                         <div className="space-y-4">

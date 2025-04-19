@@ -28,8 +28,8 @@ export function HeroSection() {
 
                     {/* Text content */}
                     <div className="relative mt-8 flex flex-col gap-4 justify-center z-40">
-                        <h1 className="relative text-5xl font-bold tracking-tight text-gray-900">Navigate your world</h1>
-                        <p className="relative mt-2 text-lg text-gray-500">Upload GeoJSON to create custom maps and find the fastest routes.</p>
+                        <h1 className="relative text-5xl font-bold tracking-tight text-gray-900">A* Anywhere</h1>
+                        <p className="relative mt-2 text-lg text-gray-500 max-w-lg mx-auto">Upload GeoJSON to create custom maps and find the fastest routes to the places you need to get to</p>
                     </div>
 
                     {/* CTA Buttons */}

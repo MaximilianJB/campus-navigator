@@ -28,20 +28,20 @@ export function Header() {
                 </Link>
                 <div className="hidden sm:flex items-center gap-4">
                     <Button variant="ghost" asChild>
-                        <Link href="/navigator" className="font-medium">
-                            The Navigator
+                        <Link href="/map-upload" className="font-medium">
+                            Upload Map
                         </Link>
                     </Button>
                     <Button variant="ghost" asChild>
-                        <Link href="/map-upload" className="font-medium">
-                            Upload Map
+                        <Link href="/docs" className="font-medium">
+                            Docs
                         </Link>
                     </Button>
                     <Button
                         asChild
                         className="bg-teal-500 text-white transition-all hover:bg-teal-600 hover:scale-105 active:scale-95"
                     >
-                        <Link href="/docs">Docs</Link>
+                        <Link href="/navigator">Try the App</Link>
                     </Button>
                 </div>
                 <div className="sm:hidden">
@@ -53,13 +53,13 @@ export function Header() {
             {isMenuOpen && (
                 <div className="sm:hidden bg-white w-full flex flex-col items-center gap-4 py-4 px-4 border-t border-gray-200">
                     <Button variant="ghost" asChild className="w-full justify-center">
-                        <Link href="/navigator" className="font-medium" onClick={toggleMenu}>
-                            The Navigator
+                        <Link href="/map-upload" className="font-medium" onClick={toggleMenu}>
+                            Upload Map
                         </Link>
                     </Button>
                     <Button variant="ghost" asChild className="w-full justify-center">
-                        <Link href="/map-upload" className="font-medium" onClick={toggleMenu}>
-                            Upload Map
+                        <Link href="/docs" className="font-medium" onClick={toggleMenu}>
+                            Docs
                         </Link>
                     </Button>
                     <Button
@@ -67,7 +67,7 @@ export function Header() {
                         className="bg-teal-500 text-white transition-all hover:bg-teal-600 hover:scale-105 active:scale-95 w-full justify-center"
                         onClick={toggleMenu}
                     >
-                        <Link href="/docs">Docs</Link>
+                        <Link href="/navigator">Try the App</Link>
                     </Button>
                 </div>
             )}
