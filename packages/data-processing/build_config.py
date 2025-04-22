@@ -11,11 +11,13 @@ import sys
 # Constants
 GRID_SPACING = 0.00002  # ~2 meters, matches vector_pathfinding.py
 BUILDING_PADDING = 1.0  # ~2 meters
-HALLWAY_RADIUS = 3  # Matches vector_pathfinding.py
+HALLWAY_RADIUS = 0.75  # Matches vector_pathfinding.py
 
 # Helper functions from vector_pathfinding.py
 def rasterize_line(grid, minx, miny, grid_spacing, line, width=1, value=0):
     height, width_grid = grid.shape
+    # Cast width to integer to avoid TypeError in range
+    width = int(round(width))
     if line.length == 0:
         x, y = line.xy[0][0], line.xy[1][0]
         ix = int((x - minx) / grid_spacing)
@@ -61,10 +63,9 @@ def rasterize_map(bounds_poly, buildings, hallways, entrances, grid_spacing, bui
     minx, miny, maxx, maxy = bounds_poly.bounds
     width = int(np.ceil((maxx - minx) / grid_spacing))
     height = int(np.ceil((maxy - miny) / grid_spacing))
-    grid = np.zeros((height, width), dtype=np.uint8)  # 0 = walkable
-    hallway_grid = np.ones((height, width), dtype=float)  # Cost grid
+    grid = np.zeros((height, width), dtype=np.uint8)  # 0 = walkable, 1 = obstacle
 
-    # Rasterize buildings
+    # Rasterize buildings first
     padded_buildings = [b.buffer(building_padding * grid_spacing) for b in buildings]
     building_tree = STRtree(padded_buildings)
     building_cell_counts = []
@@ -87,10 +88,9 @@ def rasterize_map(bounds_poly, buildings, hallways, entrances, grid_spacing, bui
     print(f"Building cell counts: {building_cell_counts}")
     print(f"Total obstacle cells: {np.sum(grid == 1)}")
 
-    # Rasterize hallways and entrances
+    # Rasterize hallways and entrances after buildings to override obstacles
     for hallway in hallways:
         rasterize_line(grid, minx, miny, grid_spacing, hallway, width=hallway_radius, value=0)
-        rasterize_line(hallway_grid, minx, miny, grid_spacing, hallway, width=hallway_radius, value=0.1)
 
     for entrance in entrances:
         building = find_building_for_entrance(entrance, buildings)
@@ -102,20 +102,17 @@ def rasterize_map(bounds_poly, buildings, hallways, entrances, grid_spacing, bui
             nearest_point_on_hallway = nearest_points(entrance, nearest_hallway)[1]
             connection = LineString([entrance, nearest_point_on_hallway])
             rasterize_line(grid, minx, miny, grid_spacing, connection, width=hallway_radius, value=0)
-            rasterize_line(hallway_grid, minx, miny, grid_spacing, connection, width=hallway_radius, value=0.1)
         if building.contains(entrance):
             exterior_point = nearest_points(entrance, building.exterior)[1]
             connection_to_outside = LineString([entrance, exterior_point])
             rasterize_line(grid, minx, miny, grid_spacing, connection_to_outside, width=hallway_radius, value=0)
-            rasterize_line(hallway_grid, minx, miny, grid_spacing, connection_to_outside, width=hallway_radius, value=0.1)
         x, y = entrance.x, entrance.y
         ix = int((x - minx) / grid_spacing)
         iy = int((y - miny) / grid_spacing)
         if 0 <= ix < width and 0 <= iy < height:
             grid[iy, ix] = 0
-            hallway_grid[iy, ix] = 0.1
 
-    return grid, hallway_grid, minx, miny, grid_spacing
+    return grid, minx, miny, grid_spacing
 
 if __name__ == "__main__":
     # Set up command-line argument parser
@@ -170,13 +167,12 @@ if __name__ == "__main__":
     print(f"Loaded {len(buildings)} buildings, {len(hallways)} hallways, {len(entrances)} entrances.")
 
     # Rasterize the map
-    grid, hallway_grid, minx, miny, grid_spacing = rasterize_map(
+    grid, minx, miny, grid_spacing = rasterize_map(
         bounds_poly, buildings, hallways, entrances, GRID_SPACING, BUILDING_PADDING, HALLWAY_RADIUS
     )
 
-    # Convert numpy arrays to lists for JSON serialization
+    # Convert numpy array to list for JSON serialization
     grid_list = grid.tolist()
-    hallway_grid_list = hallway_grid.tolist()
 
     # Create output JSON
     output_json = {
@@ -186,8 +182,7 @@ if __name__ == "__main__":
         "lat_max": miny + grid.shape[0] * grid_spacing,
         "lng_min": minx,
         "lng_max": minx + grid.shape[1] * grid_spacing,
-        "grid": grid_list,
-        "hallway_grid": hallway_grid_list
+        "grid": grid_list
     }
 
     # Write to file
@@ -198,4 +193,3 @@ if __name__ == "__main__":
     print(f"Grid shape: {grid.shape[0]}x{grid.shape[1]}")
     print(f"Walkable cells: {np.sum(grid == 0)}")
     print(f"Obstacle cells: {np.sum(grid == 1)}")
-    print(f"Hallway cells (cost 0.1): {np.sum(hallway_grid == 0.1)}")
