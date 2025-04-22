@@ -1,64 +1,201 @@
 import json
-import geopandas as gpd
-import math
+import geojson
+import numpy as np
+from shapely.geometry import LineString, Point, Polygon
+from shapely.strtree import STRtree
+from shapely.ops import nearest_points
+import os
+import argparse
+import sys
 
 # Constants
-GRID_SQUARE_SIZE = 2 # meters (2x2 meters)
+GRID_SPACING = 0.00002  # ~2 meters, matches vector_pathfinding.py
+BUILDING_PADDING = 1.0  # ~2 meters
+HALLWAY_RADIUS = 3  # Matches vector_pathfinding.py
 
-def read_json_file(file_path):
-    with open(file_path, 'r') as file:
-        data = json.load(file)
-    return data
+# Helper functions from vector_pathfinding.py
+def rasterize_line(grid, minx, miny, grid_spacing, line, width=1, value=0):
+    height, width_grid = grid.shape
+    if line.length == 0:
+        x, y = line.xy[0][0], line.xy[1][0]
+        ix = int((x - minx) / grid_spacing)
+        iy = int((y - miny) / grid_spacing)
+        for dx in range(-width, width + 1):
+            for dy in range(-width, width + 1):
+                iix = ix + dx
+                iiy = iy + dy
+                if 0 <= iix < width_grid and 0 <= iiy < height:
+                    grid[iiy, iix] = value
+        return
+    num_points = int(line.length / grid_spacing) + 1
+    if num_points == 1:
+        x, y = line.xy[0][0], line.xy[1][0]
+        ix = int((x - minx) / grid_spacing)
+        iy = int((y - miny) / grid_spacing)
+        for dx in range(-width, width + 1):
+            for dy in range(-width, width + 1):
+                iix = ix + dx
+                iiy = iy + dy
+                if 0 <= iix < width_grid and 0 <= iiy < height:
+                    grid[iiy, iix] = value
+        return
+    for i in range(num_points):
+        pt = line.interpolate(i * line.length / (num_points - 1))
+        x, y = pt.x, pt.y
+        ix = int((x - minx) / grid_spacing)
+        iy = int((y - miny) / grid_spacing)
+        for dx in range(-width, width + 1):
+            for dy in range(-width, width + 1):
+                iix = ix + dx
+                iiy = iy + dy
+                if 0 <= iix < width_grid and 0 <= iiy < height:
+                    grid[iiy, iix] = value
 
-def read_geojson_file(file_path):
-    data = gpd.read_file(file_path)
-    return data
+def find_building_for_entrance(entrance, buildings):
+    for b in buildings:
+        if b.contains(entrance) or b.exterior.distance(entrance) < 1e-9:
+            return b
+    return None
 
-def lat_meters_to_degrees(meters):
-    return meters / 111320  # Approximate conversion for latitude
+def rasterize_map(bounds_poly, buildings, hallways, entrances, grid_spacing, building_padding=1.0, hallway_radius=0.75):
+    minx, miny, maxx, maxy = bounds_poly.bounds
+    width = int(np.ceil((maxx - minx) / grid_spacing))
+    height = int(np.ceil((maxy - miny) / grid_spacing))
+    grid = np.zeros((height, width), dtype=np.uint8)  # 0 = walkable
+    hallway_grid = np.ones((height, width), dtype=float)  # Cost grid
 
-def lon_meters_to_degrees(meters, latitude):
-    return meters / (111320 * math.cos(math.radians(latitude)))  # Adjust for longitude
+    # Rasterize buildings
+    padded_buildings = [b.buffer(building_padding * grid_spacing) for b in buildings]
+    building_tree = STRtree(padded_buildings)
+    building_cell_counts = []
+    for b in padded_buildings:
+        count = 0
+        minx_b, miny_b, maxx_b, maxy_b = b.bounds
+        min_ix = max(0, int((minx_b - minx) / grid_spacing))
+        max_ix = min(width, int((maxx_b - minx) / grid_spacing) + 1)
+        min_iy = max(0, int((miny_b - miny) / grid_spacing))
+        max_iy = min(height, int((maxy_b - miny) / grid_spacing) + 1)
+        for iy in range(min_iy, max_iy):
+            for ix in range(min_ix, max_ix):
+                x = minx + ix * grid_spacing + grid_spacing / 2
+                y = miny + iy * grid_spacing + grid_spacing / 2
+                pt = Point(x, y)
+                if b.contains(pt):
+                    grid[iy, ix] = 1
+                    count += 1
+        building_cell_counts.append(count)
+    print(f"Building cell counts: {building_cell_counts}")
+    print(f"Total obstacle cells: {np.sum(grid == 1)}")
+
+    # Rasterize hallways and entrances
+    for hallway in hallways:
+        rasterize_line(grid, minx, miny, grid_spacing, hallway, width=hallway_radius, value=0)
+        rasterize_line(hallway_grid, minx, miny, grid_spacing, hallway, width=hallway_radius, value=0.1)
+
+    for entrance in entrances:
+        building = find_building_for_entrance(entrance, buildings)
+        if building is None:
+            continue
+        building_hallways = [h for h in hallways if h.intersects(building)]
+        if building_hallways:
+            nearest_hallway = min(building_hallways, key=lambda h: h.distance(entrance))
+            nearest_point_on_hallway = nearest_points(entrance, nearest_hallway)[1]
+            connection = LineString([entrance, nearest_point_on_hallway])
+            rasterize_line(grid, minx, miny, grid_spacing, connection, width=hallway_radius, value=0)
+            rasterize_line(hallway_grid, minx, miny, grid_spacing, connection, width=hallway_radius, value=0.1)
+        if building.contains(entrance):
+            exterior_point = nearest_points(entrance, building.exterior)[1]
+            connection_to_outside = LineString([entrance, exterior_point])
+            rasterize_line(grid, minx, miny, grid_spacing, connection_to_outside, width=hallway_radius, value=0)
+            rasterize_line(hallway_grid, minx, miny, grid_spacing, connection_to_outside, width=hallway_radius, value=0.1)
+        x, y = entrance.x, entrance.y
+        ix = int((x - minx) / grid_spacing)
+        iy = int((y - miny) / grid_spacing)
+        if 0 <= ix < width and 0 <= iy < height:
+            grid[iy, ix] = 0
+            hallway_grid[iy, ix] = 0.1
+
+    return grid, hallway_grid, minx, miny, grid_spacing
 
 if __name__ == "__main__":
-    json_file_path = 'packages/data-processing/grid_storage.json'
-    geojson_file_path = 'packages/data-processing/campus_square.geojson'
+    # Set up command-line argument parser
+    parser = argparse.ArgumentParser(description="Build grid configuration from GeoJSON")
+    # Robust path to default GeoJSON
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    DEFAULT_GEOJSON_PATH = os.path.join(SCRIPT_DIR, "Full.geojson")
+    parser.add_argument('--input', type=str, default=DEFAULT_GEOJSON_PATH,
+                        help='Path to input GeoJSON file')
+    parser.add_argument('--output', type=str, default=os.path.join(SCRIPT_DIR, "grid_config.json"),
+                        help='Path to output JSON file')
+    args = parser.parse_args()
 
-    # store the grid array in a variable
-    grid_json = read_json_file(json_file_path)
-    grid_array = grid_json['campus1.geojson']
-    
-    # store metrics about the geojson file in a variable
-    geojson_square = read_geojson_file(geojson_file_path)
-    # Extract the coordinates of the polygon
-    polygon = geojson_square.geometry.iloc[0]
-    coordinates = polygon.exterior.coords[:-1]
+    # Input and output file paths
+    input_geojson_path = args.input
+    output_json_path = args.output
 
-    # Extract latitude and longitude values
-    lats = [coord[1] for coord in coordinates]
-    lngs = [coord[0] for coord in coordinates]
+    # Load GeoJSON
+    if not os.path.exists(input_geojson_path):
+        print(f"Error: GeoJSON file not found: {input_geojson_path}")
+        sys.exit(1)
 
-    # Calculate the latitude and longitude range
-    grid_min_lat = min(lats)
-    grid_max_lat = max(lats)
-    grid_min_lng = min(lngs)
-    grid_max_lng = max(lngs)
+    with open(input_geojson_path, "r") as f:
+        gj = geojson.load(f)
 
-    # Compute number of rows and columns
-    grid_num_rows = int((grid_max_lat - grid_min_lat) / lat_meters_to_degrees(GRID_SQUARE_SIZE))
-    grid_num_cols = int((grid_max_lng - grid_min_lng) / lon_meters_to_degrees(GRID_SQUARE_SIZE, (grid_min_lat + grid_max_lat) / 2))
-    
-    # build new json object
-    new_json = {
-        "rows": grid_num_rows,
-        "cols": grid_num_cols,
-        "lat_min": grid_min_lat,
-        "lat_max": grid_max_lat,
-        "lng_min": grid_min_lng,
-        "lng_max": grid_max_lng,
-        "grid": grid_array,
+    # Parse GeoJSON features
+    buildings = []
+    building_labels = []
+    hallways = []
+    entrances = []
+    bounds_poly = None
+
+    for feat in gj["features"]:
+        geom_type = feat["geometry"]["type"]
+        props = feat.get("properties", {})
+        if geom_type == "Polygon":
+            if props.get("name") == "Bounds":
+                bounds_poly = Polygon(feat["geometry"]["coordinates"][0])
+            else:
+                poly = Polygon(feat["geometry"]["coordinates"][0])
+                buildings.append(poly)
+                building_labels.append(props.get("name", ""))
+        elif geom_type == "LineString":
+            hallways.append(LineString(feat["geometry"]["coordinates"]))
+        elif geom_type == "Point":
+            entrances.append(Point(feat["geometry"]["coordinates"]))
+
+    if bounds_poly is None:
+        print("Error: No 'Bounds' polygon found in GeoJSON")
+        sys.exit(1)
+
+    print(f"Loaded {len(buildings)} buildings, {len(hallways)} hallways, {len(entrances)} entrances.")
+
+    # Rasterize the map
+    grid, hallway_grid, minx, miny, grid_spacing = rasterize_map(
+        bounds_poly, buildings, hallways, entrances, GRID_SPACING, BUILDING_PADDING, HALLWAY_RADIUS
+    )
+
+    # Convert numpy arrays to lists for JSON serialization
+    grid_list = grid.tolist()
+    hallway_grid_list = hallway_grid.tolist()
+
+    # Create output JSON
+    output_json = {
+        "rows": grid.shape[0],
+        "cols": grid.shape[1],
+        "lat_min": miny,
+        "lat_max": miny + grid.shape[0] * grid_spacing,
+        "lng_min": minx,
+        "lng_max": minx + grid.shape[1] * grid_spacing,
+        "grid": grid_list,
+        "hallway_grid": hallway_grid_list
     }
-    
-    # write new json object to file
-    with open('packages/data-processing/grid_config.json', 'w') as file:
-        json.dump(new_json, file)
+
+    # Write to file
+    with open(output_json_path, 'w') as file:
+        json.dump(output_json, file, indent=2)
+
+    print(f"Grid configuration saved to {output_json_path}")
+    print(f"Grid shape: {grid.shape[0]}x{grid.shape[1]}")
+    print(f"Walkable cells: {np.sum(grid == 0)}")
+    print(f"Obstacle cells: {np.sum(grid == 1)}")
+    print(f"Hallway cells (cost 0.1): {np.sum(hallway_grid == 0.1)}")
