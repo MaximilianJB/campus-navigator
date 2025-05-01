@@ -1,5 +1,6 @@
 import json
 import math
+import argparse
 
 from shapely.geometry import Point, shape
 
@@ -10,13 +11,14 @@ def angle_from_north(center, point):
     angle = math.degrees(math.atan2(dx, dy))  # Swap dx/dy to start from north
     return (angle + 360) % 360  # Normalize to [0, 360)
 
-def label_points_by_clockwise_direction(input_filepath):
+def label_points_by_clockwise_direction(input_filepath, output_filepath):
     # Load GeoJSON
     with open(input_filepath) as f:
         data = json.load(f)
 
     polygons = []
     points = []
+    labeled_entrances = []
 
     for feature in data["features"]:
         if feature["geometry"]["type"] == "Polygon":
@@ -49,8 +51,25 @@ def label_points_by_clockwise_direction(input_filepath):
         # Sort clockwise from north
         contained_points.sort()
 
-        # Label and print
+        # Label and store in list
         for j, (_, coords, original_index) in enumerate(contained_points, start=1):
             assigned_points.add(original_index)
             point_name = f"{poly_name}_{j:02}"
-            print(f"{point_name}, Latitude: {coords[1]}, Longitude: {coords[0]}")
+            labeled_entrances.append({
+                "label": point_name,
+                "latitude": coords[1],
+                "longitude": coords[0]
+            })
+
+    # Write the collected data to the output JSON file
+    with open(output_filepath, 'w') as outfile:
+        json.dump(labeled_entrances, outfile, indent=2)
+    print(f"Successfully labeled entrances and saved to {output_filepath}")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Label GeoJSON points within polygons clockwise and save as JSON.")
+    parser.add_argument("input_geojson", help="Path to the input GeoJSON file.")
+    parser.add_argument("output_json", help="Path to the output JSON file.")
+    args = parser.parse_args()
+
+    label_points_by_clockwise_direction(args.input_geojson, args.output_json)
