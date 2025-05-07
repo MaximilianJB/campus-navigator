@@ -1,26 +1,31 @@
-import json
+"""
+Utility functions for GeoJSON processing
+"""
 import math
-import argparse
-
+import json
 from shapely.geometry import Point, shape
 
-
 def angle_from_north(center, point):
+    """Calculate the angle from north in degrees."""
     dx = point[0] - center[0]
     dy = point[1] - center[1]
     angle = math.degrees(math.atan2(dx, dy))  # Swap dx/dy to start from north
     return (angle + 360) % 360  # Normalize to [0, 360)
 
-def label_points_by_clockwise_direction(input_filepath, output_filepath):
-    # Load GeoJSON
-    with open(input_filepath) as f:
-        data = json.load(f)
-
+def process_geojson_entrances(geojson_data):
+    """Process GeoJSON data to label entrance points in clockwise order.
+    
+    Args:
+        geojson_data (dict): Parsed GeoJSON data containing polygons and points
+        
+    Returns:
+        list: List of dictionaries containing labeled entrance points
+    """
     polygons = []
     points = []
     labeled_entrances = []
 
-    for feature in data["features"]:
+    for feature in geojson_data["features"]:
         if feature["geometry"]["type"] == "Polygon":
             polygons.append(feature)
         elif feature["geometry"]["type"] == "Point":
@@ -61,15 +66,4 @@ def label_points_by_clockwise_direction(input_filepath, output_filepath):
                 "longitude": coords[0]
             })
 
-    # Write the collected data to the output JSON file
-    with open(output_filepath, 'w') as outfile:
-        json.dump(labeled_entrances, outfile, indent=2)
-    print(f"Successfully labeled entrances and saved to {output_filepath}")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Label GeoJSON points within polygons clockwise and save as JSON.")
-    parser.add_argument("input_geojson", help="Path to the input GeoJSON file.")
-    parser.add_argument("output_json", help="Path to the output JSON file.")
-    args = parser.parse_args()
-
-    label_points_by_clockwise_direction(args.input_geojson, args.output_json)
+    return labeled_entrances
