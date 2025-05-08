@@ -53,8 +53,8 @@ export interface RouteEntrance {
 interface RoutePlanningModeProps {
     onEntrancesChange: (entrances: RouteEntrance[]) => void;
     onPathGenerated?: (path: [number, number][]) => void;
-    setCameraMode: (mode: 'aerial' | 'start' | 'flyBy') => void;
-    cameraMode: 'aerial' | 'start' | 'flyBy';
+    setCameraMode: (mode: 'aerial' | 'start') => void;
+    cameraMode: 'aerial' | 'start';
 }
 
 // The sortable pin item component
@@ -421,20 +421,7 @@ export default function RoutePlanningMode({
                             >
                                 <Navigation className="mr-2 h-3.5 w-3.5" /> Start View
                             </Button>
-                            <Button
-                                variant={cameraMode === 'flyBy' ? 'default' : 'outline'}
-                                onClick={() => setCameraMode('flyBy')}
-                                className={`flex-1 ${cameraMode === 'flyBy' ? 'bg-teal-500 hover:bg-teal-600 text-white' : ''}`}
-                                size="sm"
-                            >
-                                <Navigation className="mr-2 h-3.5 w-3.5 animate-pulse" /> Fly By Tour 🚀
-                            </Button>
                         </div>
-                        {cameraMode === 'flyBy' && (
-                            <p className="text-xs text-muted-foreground mt-2">
-                                Sit back and enjoy an immersive tour along your route!
-                            </p>
-                        )}
                     </div>
                 )}
 
