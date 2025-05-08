@@ -619,8 +619,8 @@ if __name__ == "__main__":
                         help='Path to output JSON file')
     args = parser.parse_args()
 
-    input_geojson_path = args.input
-    output_json_path = args.output
+    input_geojson_path = "Full.geojson"
+    output_json_path = "grid_config_gu.json"
 
     if not os.path.exists(input_geojson_path):
         print(f"Error: GeoJSON file not found: {input_geojson_path}")

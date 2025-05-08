@@ -255,13 +255,13 @@ class GridApp:
             )
 
 def main():
-    grid_file = "data-processing/grid_storage.json"
+    grid_file = "/Users/maximilianbrown/Desktop/GU/Senior/CampusNav/campus-navigator/packages/data-processing/grid_config_gu.json"
     grid_data = read_json_file(grid_file)
 
     root = tk.Tk()
     root.title("Campus Navigator")
-    app = GridApp(root, grid_data)
+    app = GridApp(root, grid_data["grid"])
     root.mainloop()
 
 if __name__ == '__main__':
-    main()
+    main()  

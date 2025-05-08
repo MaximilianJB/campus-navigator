@@ -54,9 +54,18 @@ def a_star(grid, start, end, custom_padding=None):
     
     rows, cols = len(working_grid), len(working_grid[0])
     
-    # Ensure start and end positions are not within padded areas
-    if working_grid[start[0]][start[1]] == 1 or working_grid[end[0]][end[1]] == 1:
-        return []  # Start or end position is not traversable
+    # If start or end positions are within padded areas, find nearest walkable cells in working grid
+    if working_grid[start[0]][start[1]] == 1:
+        nearest_start = find_nearest_walkable(working_grid, start[0], start[1])
+        if not nearest_start:
+            return []  # Can't find a walkable start position
+        start = nearest_start
+        
+    if working_grid[end[0]][end[1]] == 1:
+        nearest_end = find_nearest_walkable(working_grid, end[0], end[1])
+        if not nearest_end:
+            return []  # Can't find a walkable end position
+        end = nearest_end
     
     open_set = []  # Priority queue for A* search
     heapq.heappush(open_set, (0, start))  # (cost, (x, y))
@@ -107,6 +116,29 @@ def grid_to_lat_lng(row, col, config):
     lat = config['lat_max'] - (row + 0.5) * row_size
     lng = config['lng_min'] + (col + 0.5) * col_size
     return lat, lng
+
+def find_nearest_walkable(grid, row, col):
+    """Find the nearest walkable square (value 0) from the given position."""
+    rows, cols = len(grid), len(grid[0])
+    
+    # If the point is already walkable, return it
+    if grid[row][col] == 0:
+        return (row, col)
+    
+    # Search in expanding rings around the point
+    max_distance = max(rows, cols)  # Maximum possible distance
+    for distance in range(1, max_distance):
+        # Check all cells at distance 'distance' from (row, col)
+        for dr in range(-distance, distance + 1):
+            for dc in range(-distance, distance + 1):
+                # Only check cells exactly 'distance' away (Manhattan distance)
+                if abs(dr) + abs(dc) == distance:
+                    nr, nc = row + dr, col + dc
+                    if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 0:
+                        return (nr, nc)
+    
+    # If no walkable square is found (shouldn't happen in practice)
+    return None
 
 def download_grid_config(bucket_name, file_name):
     """Download and parse grid_config.json from Cloud Storage."""
@@ -174,25 +206,79 @@ def find_path():
         response = make_response(jsonify({'error': 'End point outside grid bounds'}))
         response.headers['Access-Control-Allow-Origin'] = cors_origin
         return response, 400
-    if config['grid'][start_row][start_col] == 1:
-        response = make_response(jsonify({'error': 'Start point is an obstacle'}))
-        response.headers['Access-Control-Allow-Origin'] = cors_origin
-        return response, 400
-    if config['grid'][end_row][end_col] == 1:
-        response = make_response(jsonify({'error': 'End point is an obstacle'}))
-        response.headers['Access-Control-Allow-Origin'] = cors_origin
-        return response, 400
     
-    # Run A* pathfinding
-    path = a_star(config['grid'], (start_row, start_col), (end_row, end_col))
+    # If start point is an obstacle, find nearest walkable square
+    original_start = (start_row, start_col)
+    if config['grid'][start_row][start_col] == 1:
+        nearest_start = find_nearest_walkable(config['grid'], start_row, start_col)
+        if nearest_start:
+            start_row, start_col = nearest_start
+            # Calculate lat/lng for the modified start point for the response
+            adjusted_start_lat, adjusted_start_lng = grid_to_lat_lng(start_row, start_col, config)
+        else:
+            response = make_response(jsonify({'error': 'Could not find walkable square near start point'}))
+            response.headers['Access-Control-Allow-Origin'] = cors_origin
+            return response, 400
+    else:
+        adjusted_start_lat, adjusted_start_lng = None, None
+    
+    # If end point is an obstacle, find nearest walkable square
+    original_end = (end_row, end_col)
+    if config['grid'][end_row][end_col] == 1:
+        nearest_end = find_nearest_walkable(config['grid'], end_row, end_col)
+        if nearest_end:
+            end_row, end_col = nearest_end
+            # Calculate lat/lng for the modified end point for the response
+            adjusted_end_lat, adjusted_end_lng = grid_to_lat_lng(end_row, end_col, config)
+        else:
+            response = make_response(jsonify({'error': 'Could not find walkable square near end point'}))
+            response.headers['Access-Control-Allow-Origin'] = cors_origin
+            return response, 400
+    else:
+        adjusted_end_lat, adjusted_end_lng = None, None
+    
+    # Diagnostics to help debug path issues
+    debug_info = {
+        'start': [start_row, start_col],
+        'end': [end_row, end_col]
+    }
+    
+    # Run A* pathfinding with reduced or no padding if we're using adjusted points
+    # This helps ensure we can find a valid path
+    custom_padding = None
+    if adjusted_start_lat is not None or adjusted_end_lat is not None:
+        # If we've adjusted a point, reduce padding to improve path finding
+        custom_padding = max(0, padding - 1)  # Reduce padding by 1 or set to 0
+    
+    # Try pathfinding with configurable padding
+    path = a_star(config['grid'], (start_row, start_col), (end_row, end_col), custom_padding)
+    
+    # If still no path found with reduced padding, try one more time with no padding
+    if not path and custom_padding is not None and custom_padding > 0:
+        path = a_star(config['grid'], (start_row, start_col), (end_row, end_col), 0)
+    
     if not path:
-        response = make_response(jsonify({'path': []}))
+        debug_info['path_found'] = False
+        response = make_response(jsonify({'path': [], 'debug': debug_info}))
         response.headers['Access-Control-Allow-Origin'] = cors_origin
         return response, 200
+        
+    debug_info['path_found'] = True
+    debug_info['path_length'] = len(path)
     
     # Convert path to lat-long
     path_lat_lng = [grid_to_lat_lng(row, col, config) for row, col in path]
-    response = make_response(jsonify({'path': [[lat, lng] for lat, lng in path_lat_lng]}))
+    
+    # Prepare the response with the path and any adjustments made
+    response_data = {'path': [[lat, lng] for lat, lng in path_lat_lng]}
+    
+    # Include adjusted coordinates in the response if they were modified
+    if adjusted_start_lat is not None and adjusted_start_lng is not None:
+        response_data['adjusted_start'] = [adjusted_start_lat, adjusted_start_lng]
+    if adjusted_end_lat is not None and adjusted_end_lng is not None:
+        response_data['adjusted_end'] = [adjusted_end_lat, adjusted_end_lng]
+    
+    response = make_response(jsonify(response_data))
     response.headers['Access-Control-Allow-Origin'] = cors_origin
     return response, 200
 
