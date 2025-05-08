@@ -708,7 +708,8 @@ if __name__ == "__main__":
         "lat_max": miny + grid.shape[0] * grid_spacing,
         "lng_min": minx,
         "lng_max": minx + grid.shape[1] * grid_spacing,
-        "grid": grid_list
+        "grid": grid_list,
+        "buildings": building_labels
     }
 
     with open(output_json_path, 'w') as file:
