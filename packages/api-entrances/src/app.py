@@ -10,7 +10,7 @@ from src.storage import upload_to_gcs, DEFAULT_BUCKET_NAME
 app = Flask(__name__)
 
 # Define allowed origins for CORS
-ALLOWED_ORIGINS = ['http://localhost:3000', 'https://campus-navigator.vercel.app']
+ALLOWED_ORIGINS = ['http://localhost:3000', 'https://campus-navigator.vercel.app', '*']
 
 def get_cors_headers(request):
     """Get appropriate CORS headers based on the request origin."""
@@ -25,15 +25,28 @@ def get_cors_headers(request):
     }
     return headers
 
-@app.route('/', methods=['GET'])
+@app.route('/', methods=['GET', 'OPTIONS', 'POST'])
 def index():
-    """Root endpoint - provides basic API info."""
-    response = make_response(jsonify({
-        'name': 'Building Entrances Processing API',
-        'version': '1.0.0',
-        'endpoints': ['/process-entrances']
-    }))
-    return response
+    """Root endpoint - provides basic API info and handles CORS."""
+    # Handle CORS preflight request
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.update(get_cors_headers(request))
+        return response, 204
+    
+    # For GET requests, provide API info
+    if request.method == 'GET':
+        response = make_response(jsonify({
+            'name': 'Building Entrances Processing API',
+            'version': '1.0.0',
+            'endpoints': ['/process-entrances']
+        }))
+        response.headers.update(get_cors_headers(request))
+        return response
+    
+    # For POST requests to root URL, redirect to process-entrances
+    if request.method == 'POST':
+        return process_entrances()
 
 @app.route('/process-entrances', methods=['OPTIONS', 'POST'])
 def process_entrances():
@@ -67,8 +80,20 @@ def process_entrances():
         title = request.form.get('title', 'untitled')
         
         # Validate title (basic sanitization)
-        if not title or not title.replace('-', '').replace('_', '').isalnum():
+        if not title:
             title = 'untitled'
+        else:
+            # Replace unsafe characters with underscores but keep the original content
+            import re
+            # Replace any character that's not alphanumeric, space, hyphen, or underscore
+            title = re.sub(r'[^a-zA-Z0-9\s\-_]', '_', title)
+            # Replace spaces with hyphens for better URLs
+            title = title.replace(' ', '-')
+            # Ensure we have something after sanitization
+            if not title or len(title.strip()) == 0:
+                title = 'untitled'
+            
+        print(f"Using title: {title}")
         
         # Read the GeoJSON file
         geojson_content = geojson_file.read()

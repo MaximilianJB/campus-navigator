@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import React, { useRef, useState } from "react";
 import { motion } from "motion/react";
-import { IconUpload } from "@tabler/icons-react";
+import { IconTrash, IconUpload } from "@tabler/icons-react";
 import { useDropzone } from "react-dropzone";
 
 const mainVariant = {
@@ -36,8 +36,18 @@ export const FileUpload = ({
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (newFiles: File[]) => {
-        setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+        // Replace any existing files instead of appending
+        setFiles(newFiles);
         onChange?.(newFiles);
+    };
+    
+    const handleDeleteFile = () => {
+        setFiles([]);
+        onChange?.([]);
+        // Reset the file input
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     };
 
     const handleClick = () => {
@@ -118,14 +128,30 @@ export const FileUpload = ({
                                             {file.type}
                                         </motion.p>
 
-                                        <motion.p
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            layout
-                                        >
-                                            modified{" "}
-                                            {new Date(file.lastModified).toLocaleDateString()}
-                                        </motion.p>
+                                        <div className="flex items-center gap-4">
+                                            <motion.p
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                layout
+                                            >
+                                                modified{" "}
+                                                {new Date(file.lastModified).toLocaleDateString()}
+                                            </motion.p>
+                                            
+                                            <motion.button
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                layout
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteFile();
+                                                }}
+                                                className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900 text-red-500 transition-colors"
+                                                aria-label="Delete file"
+                                            >
+                                                <IconTrash className="h-4 w-4" />
+                                            </motion.button>
+                                        </div>
                                     </div>
                                 </motion.div>
                             ))}

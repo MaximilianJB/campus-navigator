@@ -182,48 +182,7 @@ def find_path():
     start_row, start_col = lat_lng_to_grid(start_lat, start_lng, config)
     end_row, end_col = lat_lng_to_grid(end_lat, end_lng, config)
     
-    # Validate coordinates
-    adjustments = {}
-    
-    # Check if start point is within grid bounds
-    if not (0 <= start_row < config['rows'] and 0 <= start_col < config['cols']):
-        # Find nearest valid point within grid
-        start_row = max(0, min(start_row, config['rows'] - 1))
-        start_col = max(0, min(start_col, config['cols'] - 1))
-        adjustments['start_point'] = 'moved inside grid bounds'
-    
-    # Check if end point is within grid bounds
-    if not (0 <= end_row < config['rows'] and 0 <= end_col < config['cols']):
-        # Find nearest valid point within grid
-        end_row = max(0, min(end_row, config['rows'] - 1))
-        end_col = max(0, min(end_col, config['cols'] - 1))
-        adjustments['end_point'] = 'moved inside grid bounds'
-    
-    # Check if start point is an obstacle
-    if config['grid'][start_row][start_col] == 1:
-        new_start_row, new_start_col = find_nearest_valid_point(
-            config['grid'], start_row, start_col, config['rows'], config['cols'])
-        if new_start_row is not None:
-            start_row, start_col = new_start_row, new_start_col
-            adjustments['start_point'] = 'moved from obstacle to nearest valid point'
-        else:
-            response = make_response(jsonify({'error': 'No valid path available near start point'}))
-            response.headers['Access-Control-Allow-Origin'] = cors_origin
-            return response, 400
-    
-    # Check if end point is an obstacle
-    if config['grid'][end_row][end_col] == 1:
-        new_end_row, new_end_col = find_nearest_valid_point(
-            config['grid'], end_row, end_col, config['rows'], config['cols'])
-        if new_end_row is not None:
-            end_row, end_col = new_end_row, new_end_col
-            adjustments['end_point'] = 'moved from obstacle to nearest valid point'
-        else:
-            response = make_response(jsonify({'error': 'No valid path available near end point'}))
-            response.headers['Access-Control-Allow-Origin'] = cors_origin
-            return response, 400
-    
-        # Run A* pathfinding
+    # Run A* pathfinding
     path = a_star(config['grid'], (start_row, start_col), (end_row, end_col))
     if not path:
         # Include diagnostic information about why no path was found
@@ -245,7 +204,6 @@ def find_path():
                 path_lat_lng = [grid_to_lat_lng(row, col, config) for row, col in path]
                 response_data = {
                     'path': [[lat, lng] for lat, lng in path_lat_lng],
-                    'adjustments': adjustments,
                     'debug_info': debug_info
                 }
                 response = make_response(jsonify(response_data))
@@ -254,7 +212,6 @@ def find_path():
                 
         response = make_response(jsonify({
             'path': [], 
-            'adjustments': adjustments,
             'debug_info': debug_info,
             'message': 'No valid path found between the adjusted points'
         }))
@@ -266,17 +223,6 @@ def find_path():
     response_data = {
         'path': [[lat, lng] for lat, lng in path_lat_lng]
     }
-    
-    # Include adjustment information if any points were moved
-    if adjustments:
-        response_data['adjustments'] = adjustments
-        # Include the adjusted coordinates for debugging
-        adjusted_start = grid_to_lat_lng(start_row, start_col, config)
-        adjusted_end = grid_to_lat_lng(end_row, end_col, config)
-        response_data['adjusted_coordinates'] = {
-            'start': [adjusted_start[0], adjusted_start[1]],
-            'end': [adjusted_end[0], adjusted_end[1]]
-        }
     
     response = make_response(jsonify(response_data))
     response.headers['Access-Control-Allow-Origin'] = cors_origin

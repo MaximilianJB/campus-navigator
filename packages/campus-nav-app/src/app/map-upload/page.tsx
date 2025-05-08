@@ -17,6 +17,7 @@ export default function MapUploadPage() {
     const [mapName, setMapName] = React.useState("")
     const [errors, setErrors] = React.useState<string[]>([])
     const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [apiError, setApiError] = React.useState<string | null>(null)
 
     const handleFileChange = async (files: File[]) => {
         const file = files[0]
@@ -43,8 +44,46 @@ export default function MapUploadPage() {
     const handleSubmit = async () => {
         if (!selectedFile || errors.length > 0 || !mapName) return
         setIsSubmitting(true)
-        // TODO: implement actual upload API call
-        router.push("/map-upload/success")
+        setApiError(null)
+
+        try {
+            // Create FormData for file upload
+            const formData = new FormData()
+            formData.append('geojson_file', selectedFile)
+            formData.append('title', mapName)
+
+            // Call the api-entrances API
+            const apiUrl = process.env.NEXT_PUBLIC_ENTRANCES_API_URL || 'https://building-entrances-api-842151361761.us-central1.run.app/process-entrances'
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                // Don't set Content-Type header - browser will set it with correct boundary
+                body: formData,
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.error || 'Failed to process GeoJSON file')
+            }
+
+            const result = await response.json()
+            console.log('API response:', result)
+
+            // Store the results in localStorage for access on the success page
+            localStorage.setItem('mapUploadResult', JSON.stringify({
+                mapName: mapName,
+                filePath: result.file_path,
+                publicUrl: result.public_url,
+                entrancesCount: result.message.match(/\d+/)?.[0] || '0'
+            }))
+
+            // Navigate to success page
+            router.push("/map-upload/success")
+        } catch (error) {
+            console.error('Error submitting GeoJSON:', error)
+            setApiError(error instanceof Error ? error.message : 'An unexpected error occurred')
+            setIsSubmitting(false)
+        }
     }
 
     return (
@@ -55,6 +94,13 @@ export default function MapUploadPage() {
 
                 <div className="px-4 lg:px-8 space-y-6">
                     <FileUpload onChange={handleFileChange} />
+
+                    {apiError && (
+                        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded mt-4">
+                            <p className="font-semibold">Error</p>
+                            <p>{apiError}</p>
+                        </div>
+                    )}
                 </div>
                 <section className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8 space-y-6">
                     {selectedFile && (

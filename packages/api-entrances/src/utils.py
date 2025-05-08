@@ -38,7 +38,31 @@ def process_geojson_entrances(geojson_data):
 
     for poly_feature in polygons:
         poly_geom = shape(poly_feature["geometry"])
-        poly_name = poly_feature["properties"].get("name")
+        
+        # Try different possible property names for the polygon name
+        properties = poly_feature.get("properties", {})
+        
+        # Check various possible name properties in order of preference
+        name_properties = ["name", "Name", "NAME"]
+        poly_name = None
+        
+        # First check standard name properties
+        for prop in name_properties:
+            if prop in properties and properties[prop]:
+                poly_name = properties[prop]
+                break
+                
+        # If no name found, check the 'name:' property which appears in this GeoJSON file
+        if not poly_name and "name:" in properties and properties["name:"]:
+            poly_name = properties["name:"]
+            print(f"Found name in 'name:' property: {poly_name}")
+        
+        # If no name was found, generate a default name using the index
+        if not poly_name:
+            poly_name = f"Building_{len(labeled_entrances) + 1}"
+            print(f"Warning: No name found for polygon. Using '{poly_name}' instead.")
+            print(f"Available properties: {list(properties.keys())}")
+            
         centroid = poly_geom.centroid.coords[0]
 
         contained_points = []
