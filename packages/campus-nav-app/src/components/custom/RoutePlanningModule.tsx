@@ -53,8 +53,8 @@ export interface RouteEntrance {
 interface RoutePlanningModeProps {
     onEntrancesChange: (entrances: RouteEntrance[]) => void;
     onPathGenerated?: (path: [number, number][]) => void;
-    setCameraMode: (mode: 'aerial' | 'start') => void; // Add camera mode setter
-    cameraMode: 'aerial' | 'start'; // Receive current camera mode
+    setCameraMode: (mode: 'aerial' | 'start' | 'flyBy') => void;
+    cameraMode: 'aerial' | 'start' | 'flyBy';
 }
 
 // The sortable pin item component
@@ -401,22 +401,42 @@ export default function RoutePlanningMode({
             </CardContent>
             <div className="p-4 border-t space-y-3">
                 {/* Camera Controls */}
-                <div className="flex gap-2">
-                    <Button
-                        variant={cameraMode === 'aerial' ? 'default' : 'outline'}
-                        onClick={() => setCameraMode('aerial')}
-                        className={`flex-1 ${cameraMode === 'aerial' ? 'bg-teal-500 hover:bg-teal-600 text-white' : ''}`}
-                    >
-                        <Eye className="mr-2 h-4 w-4" /> Aerial View
-                    </Button>
-                    <Button
-                        variant={cameraMode === 'start' ? 'default' : 'outline'}
-                        onClick={() => setCameraMode('start')}
-                        className={`flex-1 ${cameraMode === 'start' ? 'bg-teal-500 hover:bg-teal-600 text-white' : ''}`}
-                    >
-                        <Navigation className="mr-2 h-4 w-4" /> Start View
-                    </Button>
-                </div>
+                {pins.length > 0 && (
+                    <div>
+                        <h3 className="text-sm font-medium mb-2">Camera View</h3>
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                variant={cameraMode === 'aerial' ? 'default' : 'outline'}
+                                onClick={() => setCameraMode('aerial')}
+                                className={`flex-1 ${cameraMode === 'aerial' ? 'bg-teal-500 hover:bg-teal-600 text-white' : ''}`}
+                                size="sm"
+                            >
+                                <Eye className="mr-2 h-3.5 w-3.5" /> Aerial View
+                            </Button>
+                            <Button
+                                variant={cameraMode === 'start' ? 'default' : 'outline'}
+                                onClick={() => setCameraMode('start')}
+                                className={`flex-1 ${cameraMode === 'start' ? 'bg-teal-500 hover:bg-teal-600 text-white' : ''}`}
+                                size="sm"
+                            >
+                                <Navigation className="mr-2 h-3.5 w-3.5" /> Start View
+                            </Button>
+                            <Button
+                                variant={cameraMode === 'flyBy' ? 'default' : 'outline'}
+                                onClick={() => setCameraMode('flyBy')}
+                                className={`flex-1 ${cameraMode === 'flyBy' ? 'bg-teal-500 hover:bg-teal-600 text-white' : ''}`}
+                                size="sm"
+                            >
+                                <Navigation className="mr-2 h-3.5 w-3.5 animate-pulse" /> Fly By Tour 🚀
+                            </Button>
+                        </div>
+                        {cameraMode === 'flyBy' && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                                Sit back and enjoy an immersive tour along your route!
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 {/* Generate Path Button */}
                 <Button
